@@ -16,7 +16,6 @@ class PromptOrchestrator {
     });
 
     if (existingQuestion) {
-      console.log('Idempotency key found, returning existing response.');
       if (!existingQuestion.response.length) {
 
         throw new ErrorHandler('Duplicate request processing, but no response found. Please try again with a new request.', 409);
@@ -81,7 +80,7 @@ class PromptOrchestrator {
       return new Response(text, audioUrl, fallbackUsed, null);
 
     } catch (error) {
-      console.error('Error in PromptOrchestrator:', error);
+
       if (questionRecord) {
         await prisma.qUESTIONS.update({
           where: { question_ID: questionRecord.question_ID },

@@ -15,14 +15,25 @@ class LLMProvider {
   }
 
   async generateText(prompt) {
+    return this.tryWithAfallBack({
+      primary: { fn: this.callPrimary, timeOut: LLM_TIMEOUT },
+      fallback: { fn: this.callFallback, timeOut: LLM_TIMEOUT_FALLBACK },
+      prompt
+    });
+  }
+
+  async tryWithAfallBack({ primary, fallback, prompt }) {
+    const primaryCallWithTimeout = withTimeout(primary.fn, primary.timeout);
     try {
-      const primaryCallWithTimeout = withTimeout(this.callPrimary, LLM_TIMEOUT);
       const result = await primaryCallWithTimeout(prompt);
       return { text: result, fallbackUsed: false };
-    } catch (error) {
-      console.error('Primary LLM call failed or timed out:', error.message);
+    }
+    catch (primaryError) {
+      if (!fallback) {
+        throw new ErrorHandler('Primary AI service is unavailable.', 503);
+      }
+      const fallbackCallWithTimeout = withTimeout(fallback.fn, fallback.timeOut);
       try {
-        const fallbackCallWithTimeout = withTimeout(this.callFallback, LLM_TIMEOUT_FALLBACK);
         const result = await fallbackCallWithTimeout(prompt);
         return { text: result, fallbackUsed: true }
       } catch (fallbackerror) {
@@ -30,6 +41,8 @@ class LLMProvider {
       }
     }
   }
+
+
   async callPrimary(prompt) {
     try {
       const executionTime = Math.random() * 15000;

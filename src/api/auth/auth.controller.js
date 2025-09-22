@@ -1,9 +1,10 @@
 
-import prisma from "../../database/client.js"
+import { PrismaClient } from '@prisma/client';
 import { hashPassword, comparePassword, generateToken } from '../../utils/helpers/auth.js';
-import ErrorHandler from '../../utils/ErrorHandler.js';
+import AuthenticationError from '../../utils/errors/AuthenticationError.js';
+import DatabaseError from '../../utils/errors/DatabaseError.js';
 
-
+const prisma = new PrismaClient();
 
 export const signup = async (req, res, next) => {
     try {
@@ -19,7 +20,7 @@ export const signup = async (req, res, next) => {
         const token = generateToken({ id: user.user_id });
         res.status(201).json({ token });
     } catch (error) {
-        next(new ErrorHandler(error.message, 500));
+        return next(new DatabaseError(error.message));
     }
 };
 
@@ -28,15 +29,15 @@ export const signin = async (req, res, next) => {
         const { email, password } = req.body;
         const user = await prisma.USERS.findUnique({ where: { email } });
         if (!user) {
-            return next(new ErrorHandler('Invalid credentials', 401));
+            return next(new AuthenticationError('Invalid credentials'));
         }
         const isMatch = await comparePassword(password, user.password);
         if (!isMatch) {
-            return next(new ErrorHandler('Invalid credentials', 401));
+            return next(new AuthenticationError('Invalid credentials'));
         }
         const token = generateToken({ id: user.user_id });
         res.status(200).json({ token });
     } catch (error) {
-        next(new ErrorHandler(error.message, 500));
+        return next(new DatabaseError(error.message));
     }
 };

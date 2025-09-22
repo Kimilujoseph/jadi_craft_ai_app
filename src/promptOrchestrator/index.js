@@ -4,7 +4,8 @@ import templateEngine from '../templateEngine/index.js';
 import llmProvider from '../llmProvider/index.js';
 import ttsService from '../ttsService/index.js';
 import Response from '../models/Response.js';
-import ErrorHandler from '../utils/ErrorHandler.js';
+import ConflictError from '../utils/errors/ConflictError.js';
+import DatabaseError from '../utils/errors/DatabaseError.js';
 
 class PromptOrchestrator {
   async handleQuestion({ question, wantsAudio, userId, idempotencyKey }) {
@@ -18,7 +19,7 @@ class PromptOrchestrator {
     if (existingQuestion) {
       if (!existingQuestion.response.length) {
 
-        throw new ErrorHandler('Duplicate request processing, but no response found. Please try again with a new request.', 409);
+        throw new ConflictError('Duplicate request processing, but no response found. Please try again with a new request.');
       }
       const existingResponse = existingQuestion.response[0];
       return new Response(
@@ -90,9 +91,12 @@ class PromptOrchestrator {
           },
         });
       }
+      if (error instanceof prisma.PrismaClientKnownRequestError) {
+        throw new DatabaseError(error.message);
+      }
       throw error;
     }
-  }
+  } s
 }
 
 const promptOrchestrator = new PromptOrchestrator();

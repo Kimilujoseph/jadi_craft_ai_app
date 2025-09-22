@@ -1,6 +1,6 @@
 import express from 'express';
 import promptOrchestrator from '../promptOrchestrator/index.js';
-import ErrorHandler from '../utils/ErrorHandler.js';
+import BadRequestError from '../utils/errors/BadRequestError.js';
 import rateLimiter from '../middleware/rateLimiter.js';
 
 const router = express.Router();
@@ -11,7 +11,7 @@ router.post('/', rateLimiter, async (req, res, next) => {
 
   // userId is checked by the rateLimiter, so we only need to check for the other required fields.
   if (!question || !idempotencyKey) {
-    return next(new ErrorHandler('`question` and `idempotencyKey` are required.', 400));
+    return next(new BadRequestError('`question` and `idempotencyKey` are required.'));
   }
 
   try {

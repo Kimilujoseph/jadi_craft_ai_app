@@ -1,10 +1,18 @@
-const errorHandler = (err, req, res, next) => {
-  err.statusCode = err.statusCode || 500;
-  err.message = err.message || 'Internal Server Error';
+import BaseError from '../utils/errors/BaseError.js';
 
-  res.status(err.statusCode).json({
+const errorHandler = (err, req, res, next) => {
+  console.error(err.stack);
+
+  if (err instanceof BaseError) {
+    return res.status(err.statusCode).json({
+      success: false,
+      error: err.message,
+    });
+  }
+
+  res.status(500).json({
     success: false,
-    error: err.message,
+    error: 'Internal Server Error',
   });
 };
 

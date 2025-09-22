@@ -1,4 +1,4 @@
-import ErrorHandler from '../utils/ErrorHandler.js';
+import LLMError from '../utils/errors/LLMError.js';
 import withTimeout from '../utils/withTimeout.js';
 
 const LLM_TIMEOUT = 10000;
@@ -30,49 +30,35 @@ class LLMProvider {
     }
     catch (primaryError) {
       if (!fallback) {
-        throw new ErrorHandler('Primary AI service is unavailable.', 503);
+        throw new LLMError('Primary AI service is unavailable.');
       }
       const fallbackCallWithTimeout = withTimeout(fallback.fn, fallback.timeOut);
       try {
         const result = await fallbackCallWithTimeout(prompt);
         return { text: result, fallbackUsed: true }
       } catch (fallbackerror) {
-        throw new ErrorHandler('Both primary and fallback AI services are unavailable.', 503);
+        throw new LLMError('Both primary and fallback AI services are unavailable.');
       }
     }
   }
 
-
   async callPrimary(prompt) {
-    try {
-      const executionTime = Math.random() * 15000;
-      return new Promise(resolve => {
-        setTimeout(() => {
-          resolve('This is a response from the primary LLM.');
-        }, executionTime);
-      });
-    }
-    catch (primaryError) {
-      if (primaryError instanceof ErrorHandler) {
-        throw primaryError;
-      }
-      console.error('Primary LLM failed:', primaryError.message);
-
-      throw new ErrorHandler('Primary AI service is unavailable.', 503);
-    }
+    // Simulate network latency (or replace with a real API call, e.g., fetch/axios)
+    const executionTime = Math.random() * 15000;
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve("This is a response from the primary LLM.");
+      }, executionTime);
+    });
   }
 
   async callFallback(prompt) {
-    try {
-      const result = await new Promise(resolve => setTimeout(() => resolve('This is a response from the fallback LLM.'), 1000));
-      return { text: result, fallbackUsed: true };
-    } catch (fallbackError) {
-      if (fallbackError instanceof ErrorHandler) {
-        throw fallbackError;
-      }
-      console.error('Fallback LLM failed:', fallbackError.message);
-      throw new ErrorHandler('Both primary and fallback AI services are unavailable.', 503);
-    }
+    const executionTime = Math.random() * 15000;
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve("This is a response from the primary LLM.");
+      }, executionTime);
+    });
   }
 }
 

@@ -1,4 +1,4 @@
-import ErrorHandler from '../utils/ErrorHandler.js';
+import TTSError from '../utils/errors/TTSError.js';
 import withTimeout from '../utils/withTimeout.js';
 
 const TTS_TIMEOUT = 7000; // 7 seconds
@@ -24,7 +24,7 @@ class TTSService {
       console.error('TTS Service failed or timed out:', error.message);
       // The orchestrator is designed to catch this and handle it gracefully
       // by setting a flag, so we re-throw the error.
-      throw new Error('TTS_FAILED');
+      throw new TTSError('TTS_FAILED');
     }
   }
 

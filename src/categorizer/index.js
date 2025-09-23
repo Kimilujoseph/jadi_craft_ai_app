@@ -1,58 +1,60 @@
-// import Category from '../models/Category.js';
-
-// /**
-//  * Classifies a user's query into a predefined category.
-//  */
-// class Categorizer {
-//   /**
-//    * @param {string} query The user's question.
-//    * @returns {Promise<Category>} The determined category.
-//    */
-//   async categorize(query) {
-
-//     console.log(`Categorizing query: "${query}"`);
-//     return Category.PRACTICE;
-//   }
-// }
-
-// const categorizer = new Categorizer();
-// export default categorizer;
-import Category from '../models/Category.js';
+import Category from "../models/Category.js";
 
 /**
+ * Categorizer class
  * Classifies a user's query into a predefined category based on keywords.
  */
 class Categorizer {
   /**
+   * Constructor allows customizing the fallback category.
+   * @param {Category} defaultCategory - Category to use when no keywords match.
+   */
+  constructor(defaultCategory = Category.PRACTICE) {
+    this.defaultCategory = defaultCategory;
+
+    // Centralized keyword mappings (easier to maintain/expand)
+    this.keywords = {
+      [Category.PEOPLE]: ["who", "people", "person", "leader"],
+      [Category.PERIOD]: ["when", "history", "period", "era", "time"],
+      [Category.PRACTICE]: ["how", "practice", "ritual", "ceremony", "tools", "tool"],
+      [Category.BELIEF]: ["why", "belief", "mythology", "gods", "religion", "spirit"],
+      [Category.MODERN]: ["modern", "today", "current"]
+    };
+  }
+
+  /**
+   * Instance method: Categorize a query based on keywords.
    * @param {string} query The user's question.
    * @returns {Promise<Category>} The determined category.
    */
   async categorize(query) {
     console.log(`Categorizing query: "${query}"`);
 
-    const lowerCaseQuery = query.toLowerCase();
+    const text = query.toLowerCase();
 
-    // Keywords for different categories
-    if (lowerCaseQuery.includes('who') || lowerCaseQuery.includes('people') || lowerCaseQuery.includes('person')) {
-      return Category.PEOPLE;
-    }
-    if (lowerCaseQuery.includes('when') || lowerCaseQuery.includes('history') || lowerCaseQuery.includes('period') || lowerCaseQuery.includes('era')) {
-      return Category.PERIOD;
-    }
-    if (lowerCaseQuery.includes('how') || lowerCaseQuery.includes('practice') || lowerCaseQuery.includes('ritual') || lowerCaseQuery.includes('ceremony') || lowerCaseQuery.includes('tools')) {
-      return Category.PRACTICE;
-    }
-    if (lowerCaseQuery.includes('why') || lowerCaseQuery.includes('belief') || lowerCaseQuery.includes('mythology') || lowerCaseQuery.includes('gods')) {
-      return Category.BELIEF;
-    }
-    if (lowerCaseQuery.includes('modern') || lowerCaseQuery.includes('today') || lowerCaseQuery.includes('current')) {
-      return Category.MODERN;
+    // Check each category's keywords
+    for (const [category, keywords] of Object.entries(this.keywords)) {
+      if (keywords.some((word) => text.includes(word))) {
+        return category;
+      }
     }
 
-    // Default or fallback category if no keywords are found
-    return Category.PRACTICE;
+    // Fallback if no keywords match
+    return this.defaultCategory;
+  }
+
+  /**
+   * Static helper: quickly test if a query matches a given category.
+   * @param {string} query
+   * @param {Category} category
+   * @returns {boolean}
+   */
+  static matchesCategory(query, category, keywordsMap) {
+    const text = query.toLowerCase();
+    return (keywordsMap[category] || []).some((word) => text.includes(word));
   }
 }
 
+// Export a ready-to-use instance
 const categorizer = new Categorizer();
 export default categorizer;

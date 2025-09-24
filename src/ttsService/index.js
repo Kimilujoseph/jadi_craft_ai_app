@@ -1,7 +1,8 @@
-import ErrorHandler from '../utils/ErrorHandler.js';
-import withTimeout from '../utils/withTimeout.js';
+import ErrorHandler from "../utils/ErrorHandler.js";
+import withTimeout from "../utils/withTimeout.js";
+import { queryTTS } from "./elevenlabs.js";
 
-const TTS_TIMEOUT = 7000; // 7 seconds
+const TTS_TIMEOUT = 60000; // 60 sec
 
 class TTSService {
   constructor() {
@@ -9,39 +10,34 @@ class TTSService {
   }
 
   /**
-   * Synthesizes text to audio with a timeout.
-   * @param {string} text The text to convert to audio.
-   * @returns {Promise<string>} The URL of the generated audio file.
+   * Synthesizes text to speech (ElevenLabs) with timeout
+   * @param {string} text
+   * @returns {Promise<string>} Path to saved audio file
    */
+
   async synthesize(text) {
-    console.log(`Synthesizing audio for text: "${text}"`);
+    console.log(`Synthesizing audio: "${text}"`);
     const synthesizeWithTimeout = withTimeout(this._actualSynthesize, TTS_TIMEOUT);
 
+    // Call the TTS function with timeout
     try {
-      const audioUrl = await synthesizeWithTimeout(text);
-      return audioUrl;
+      const audioPath = await synthesizeWithTimeout(text);
+      return audioPath;
     } catch (error) {
-      console.error('TTS Service failed or timed out:', error.message);
-      // The orchestrator is designed to catch this and handle it gracefully
-      // by setting a flag, so we re-throw the error.
-      throw new Error('TTS_FAILED');
+      console.error("TTS Service failed or timed out:", error.message);
+      throw new Error("TTS_FAILED");
     }
   }
 
-  /**
-   * Internal method to perform the actual TTS API call.
-   * @param {string} text
-   * @returns {Promise<string>}
-   * @private
-   */
+
   async _actualSynthesize(text) {
-    // Simulate a TTS API call that might be slow
-    const executionTime = Math.random() * 10000; // 0 to 10 seconds
-    return new Promise(resolve => {
-      setTimeout(() => {
-        resolve('https://example.com/audio.mp3');
-      }, executionTime);
-    });
+    try {
+      const filePath = await queryTTS(text);
+      return filePath;
+    } catch (err) {
+      console.error("Error in ElevenLabs TTS:", err);
+      throw new ErrorHandler("TTS API Error", 500);
+    }
   }
 }
 

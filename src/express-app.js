@@ -10,7 +10,11 @@ const App = async (app) => {
    app.use(express.json())
    app.use(express.urlencoded({ extended: true }))
    app.use(morgan("dev"))
-   app.use('/ask', askRouter);
+
+   // Serve generated audio files
+   app.use(express.static('public'));
+
+   app.use('/api/v1', askRouter);
    app.use('/auth', authRouter);
 
    // Error Handling Middleware

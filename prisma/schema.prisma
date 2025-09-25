@@ -25,7 +25,10 @@ model QUESTIONS {
 }
 
 model USERS {
-  user_id    BigInt      @id
+  user_id    BigInt      @id @default(autoincrement())
+  name       String?
+  email      String      @unique
+  password   String
   locale     String      @default("en") @db.VarChar(45)
   created_at DateTime    @default(now()) @db.DateTime(0)
   updated_at DateTime?   @default(now()) @db.DateTime(0)

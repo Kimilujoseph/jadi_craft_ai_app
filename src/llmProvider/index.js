@@ -1,50 +1,64 @@
-import ErrorHandler from '../utils/ErrorHandler.js';
+import LLMError from '../utils/errors/LLMError.js';
 import withTimeout from '../utils/withTimeout.js';
 
-const LLM_TIMEOUT = 10000; // 10 seconds
+const LLM_TIMEOUT = 10000;
+const LLM_TIMEOUT_FALLBACK = 5000;
 
 class LLMProvider {
   constructor() {
-    // Bind the context of 'this' for the method that will be passed to the utility
+    //so don't be confused with the this context
+    //we are passing this.callPrimary as a callback(withTimeout),so for us not loose the context of this
+    //we explicitly bound it to this
+    //for more info text me
     this.callPrimary = this.callPrimary.bind(this);
+    this.callFallback = this.callFallback.bind(this);
   }
 
   async generateText(prompt) {
-    console.log(`Generating text for prompt: "${prompt}"`);
+    return this.tryWithAfallBack({
+      primary: { fn: this.callPrimary, timeOut: LLM_TIMEOUT },
+      fallback: { fn: this.callFallback, timeOut: LLM_TIMEOUT_FALLBACK },
+      prompt
+    });
+  }
 
+  async tryWithAfallBack({ primary, fallback, prompt }) {
+    const primaryCallWithTimeout = withTimeout(primary.fn, primary.timeout);
     try {
-      // Create a function that calls the primary LLM with a timeout
-      const primaryCallWithTimeout = withTimeout(this.callPrimary, LLM_TIMEOUT);
       const result = await primaryCallWithTimeout(prompt);
       return { text: result, fallbackUsed: false };
-    } catch (error) {
-      console.error('Primary LLM failed or timed out:', error.message);
-      console.log('Trying fallback LLM.');
-      // If the primary fails or times out, try the fallback
-      return this.callFallback(prompt);
+    }
+    catch (primaryError) {
+      if (!fallback) {
+        throw new LLMError('Primary AI service is unavailable.');
+      }
+      const fallbackCallWithTimeout = withTimeout(fallback.fn, fallback.timeOut);
+      try {
+        const result = await fallbackCallWithTimeout(prompt);
+        return { text: result, fallbackUsed: true }
+      } catch (fallbackerror) {
+        throw new LLMError('Both primary and fallback AI services are unavailable.');
+      }
     }
   }
 
-  // A placeholder for the actual primary LLM call
   async callPrimary(prompt) {
-
-    const executionTime = Math.random() * 15000; // 0 to 15 seconds
-    return new Promise(resolve => {
+    // Simulate network latency (or replace with a real API call, e.g., fetch/axios)
+    const executionTime = Math.random() * 15000;
+    return new Promise((resolve) => {
       setTimeout(() => {
-        resolve('This is a response from the primary LLM.');
+        resolve("This is a response from the primary LLM.");
       }, executionTime);
     });
   }
 
   async callFallback(prompt) {
-    console.log('Calling fallback LLM.');
-    try {
-      const result = await new Promise(resolve => setTimeout(() => resolve('This is a response from the fallback LLM.'), 1000));
-      return { text: result, fallbackUsed: true };
-    } catch (fallbackError) {
-      console.error('Fallback LLM also failed:', fallbackError.message);
-      throw new ErrorHandler('Both primary and fallback AI services are unavailable.', 503);
-    }
+    const executionTime = Math.random() * 15000;
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve("This is a response from the primary LLM.");
+      }, executionTime);
+    });
   }
 }
 

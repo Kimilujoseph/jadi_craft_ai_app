@@ -7,6 +7,7 @@ const TTS_TIMEOUT = 60000; // 60 sec
 class TTSService {
   constructor() {
     this._actualSynthesize = this._actualSynthesize.bind(this);
+    this.audioDirectory = path.resolve(process.cwd(), 'public/audio');
   }
 
   /**

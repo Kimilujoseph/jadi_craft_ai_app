@@ -43,22 +43,25 @@ class LLMProvider {
   }
 
   async callPrimary(prompt) {
-    // Simulate network latency (or replace with a real API call, e.g., fetch/axios)
-    const executionTime = Math.random() * 15000;
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve("This is a response from the primary LLM.");
-      }, executionTime);
-    });
+
+    try {
+      const response = await axios.post('http://localhost:5002/llm/fallback', { prompt });
+      return response.data.text;
+    } catch (error) {
+      const message = error.response ? `API responded with status ${error.response.status}` : error.message;
+      throw new LLMError(`Fallback LLM provider failed: ${message}`);
+    }
   }
 
+
   async callFallback(prompt) {
-    const executionTime = Math.random() * 15000;
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve("This is a response from the primary LLM.");
-      }, executionTime);
-    });
+    try {
+      const response = await axios.post('http://localhost:5002/llm/fallback', { prompt });
+      return response.data.text;
+    } catch (error) {
+      const message = error.response ? `API responded with status ${error.response.status}` : error.message;
+      throw new LLMError(`Fallback LLM provider failed: ${message}`);
+    }
   }
 }
 

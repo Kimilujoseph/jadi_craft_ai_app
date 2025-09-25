@@ -28,50 +28,40 @@ class TTSService {
   }
 
   async _actualSynthesize(text) {
-    const SPEECHIFY_API_KEY = process.env.SPEECHIFY_API_KEY;
-    if (!SPEECHIFY_API_KEY) {
-      throw new TTSError('SPEECHIFY_API_KEY environment variable not set.');
-    }
+    try {
+      // In a real app, this URL and configuration would come from environment variables/config
+      const ttsApiUrl = 'http://localhost:5003/tts'; // Placeholder TTS service
 
-    const hash = crypto.createHash('sha256').update(text).digest('hex');
-    const filePath = path.join(this.audioDirectory, `${hash}.mp3`);
-    const publicUrl = `/audio/${hash}.mp3`;
-
-    if (fs.existsSync(filePath)) {
-      console.log('Serving TTS audio from cache:', publicUrl);
-      return publicUrl;
-    }
-
-    console.log('Generating new TTS audio, not found in cache.');
-    const response = await axios.post(
-      "https://api.sws.speechify.com/v1/audio/tts",
-      {
-        input: [
-          {
-            text: text,
-          },
-        ],
-        voice_id: "Matthew",
-        audio_format: "mp3",
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${SPEECHIFY_API_KEY}`,
-          "Content-Type": "application/json",
+      const response = await axios.post(
+        ttsApiUrl,
+        {
+          input: { text },
+          // Example voice and audio config, adjust for your TTS provider
+          voice: { languageCode: 'en-US', ssmlGender: 'NEUTRAL' },
+          audioConfig: { audioEncoding: 'MP3' },
         },
-        responseType: "stream",
-      }
-    );
-    const writer = fs.createWriteStream(filePath);
-    response.data.pipe(writer);
+        {
+          responseType: 'arraybuffer', // Crucial for receiving audio data
+        }
+      );
 
-    return new Promise((resolve, reject) => {
-      writer.on('finish', () => resolve(publicUrl));
-      writer.on('error', (err) => {
-        // Clean up broken file
-        fs.unlink(filePath, () => reject(new TTSError('Failed to save audio file.')));
-      });
-    });
+      // Create a unique filename to avoid collisions and redundant generation
+      const hash = crypto.createHash('md5').update(text).digest('hex');
+      const filename = `${hash}.mp3`;
+      const filePath = path.join(this.audioDirectory, filename);
+
+      // Save the received audio buffer to the public directory
+      fs.writeFileSync(filePath, response.data);
+
+      // Return the public URL that the client can use to access the audio
+      return `/audio/${filename}`;
+    } catch (error) {
+      // Provide a detailed error message to be wrapped by the public `synthesize` method's TTSError
+      const errorMessage = error.response
+        ? `API responded with status ${error.response.status}`
+        : error.message;
+      throw new Error(`TTS API request failed: ${errorMessage}`);
+    }
   }
 }
 

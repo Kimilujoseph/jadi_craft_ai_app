@@ -7,23 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model QUESTIONS {
-  question_ID    BigInt     @id @unique(map: "question_IS_UNIQUE")
-  user_id        BigInt
-  idempotency_key String?    @unique
-  raw_query      String     @db.Text
-  refined_prompt String     @db.MediumText
-  fallback_used  Int?       @default(0) @db.TinyInt
-  status         String     @db.VarChar(20)
-  error_message  String?    @db.Text
-  created_at     DateTime?  @default(now()) @db.DateTime(0)
-  updated_at     DateTime?  @default(now()) @db.DateTime(0)
-  USERS          USERS      @relation(fields: [user_id], references: [user_id], onDelete: Cascade, map: "fk_QUESTIONS_1")
-  response       response[]
-
-  @@index([user_id], map: "fk_QUESTIONS_1_idx")
-}
-
 model USERS {
   user_id    BigInt      @id @default(autoincrement())
   name       String?
@@ -32,17 +15,97 @@ model USERS {
   locale     String      @default("en") @db.VarChar(45)
   created_at DateTime    @default(now()) @db.DateTime(0)
   updated_at DateTime?   @default(now()) @db.DateTime(0)
-  QUESTIONS  QUESTIONS[]
+  
+  // Field for user subscription tier
+  plan       Plan        @default(FREE)
+  
+  // Relations
+  chats      Chat[]
+  usage      UsageTracker[]
 }
 
-model response {
-  response_id BigInt     @id @unique(map: "response_id_UNIQUE")
-  question_id BigInt?
-  text_answer String     @db.MediumText
-  audio_url   String?    @db.VarChar(255)
-  tts_failed  Int?       @default(0) @db.TinyInt
-  created_at  DateTime?  @default(now()) @db.DateTime(0)
-  QUESTIONS   QUESTIONS? @relation(fields: [question_id], references: [question_ID], onDelete: Cascade, map: "fk_response_1")
+model Chat {
+  id         BigInt    @id @default(autoincrement())
+  title      String?
+  userId     BigInt
+  user       USERS     @relation(fields: [userId], references: [user_id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  messages   Message[]
 
-  @@index([question_id], map: "fk_response_1_idx")
+  @@index([userId])
+}
+
+model Message {
+  id        BigInt   @id @default(autoincrement())
+  chatId    BigInt
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  role      Role
+  content   String   @db.Text
+
+  // Monitoring & Reliability Fields
+  idempotencyKey String?  @unique
+  refinedPrompt  String?  @db.Text
+  audioUrl     String?
+  fallbackUsed Boolean? @default(false)
+  
+  // Relation to failure logs
+  failures  FailureLog[]
+
+  createdAt DateTime @default(now())
+
+  @@index([chatId])
+}
+
+// NEW: For detailed failure analysis
+model FailureLog {
+  id          BigInt      @id @default(autoincrement())
+  messageId   BigInt
+  message     Message     @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  failureType FailureType // Categorizes the failure (e.g., LLM, TTS)
+  errorCode   String?     // e.g., '500', 'TIMEOUT'
+  errorMessage String     @db.Text
+  createdAt   DateTime    @default(now())
+
+  @@index([messageId])
+}
+
+// NEW: For tracking feature usage against limits
+model UsageTracker {
+  id             BigInt    @id @default(autoincrement())
+  userId         BigInt
+  user           USERS     @relation(fields: [userId], references: [user_id], onDelete: Cascade)
+  usageType      UsageType // The feature being tracked (e.g., AUDIO_GENERATION)
+  count          Int       @default(0)
+  cycleStartDate DateTime  @default(now())
+
+  @@unique([userId, usageType]) // Ensures one tracker per user per feature type
+}
+
+// --- ENUMS for structured data ---
+
+enum Role {
+  user
+  assistant
+}
+
+// NEW: User subscription plans
+enum Plan {
+  FREE
+  PAID
+}
+
+// NEW: Categories of failures for analysis
+enum FailureType {
+  PROMPT_ORCHESTRATION
+  CATEGORIZER
+  LLM_PRIMARY
+  LLM_FALLBACK
+  TTS_SERVICE
+}
+
+// NEW: Types of features to track usage for
+enum UsageType {
+  AUDIO_GENERATION
+  CHAT_MESSAGES
 }

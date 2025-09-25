@@ -1,37 +1,85 @@
 import prisma from '../database/client.js';
-import ErrorHandler from '../utils/ErrorHandler.js';
+import AuthenticationError from '../utils/errors/AuthenticationError.js';
+import RateLimitError from '../utils/errors/RateLimitError.js';
+import { UsageType } from '@prisma/client'; // Import the enum from the generated Prisma client
 
-const DAILY_REQUEST_LIMIT = 100;
+// --- Configuration for usage limits ---
+// In a real app, this would likely live in a separate config file.
+const USAGE_LIMITS = {
+  FREE: {
+    [UsageType.AUDIO_GENERATION]: 10,
+    [UsageType.CHAT_MESSAGES]: 100,
+  },
+  PAID: {
+    [UsageType.AUDIO_GENERATION]: 500,
+    [UsageType.CHAT_MESSAGES]: 2000,
+  },
+};
 
-const rateLimiter = async (req, res, next) => {
-  const { userId } = req.body;
+const USAGE_CYCLE_DAYS = 30;
 
-  if (!userId) {
 
-    return next(new ErrorHandler('User ID is required for rate limiting.', 400));
-  }
+const rateLimiter = (usageType) => {
+  return async (req, res, next) => {
+    try {
+      if (!req.user || !req.user.id) {
 
-  try {
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        throw new AuthenticationError('Authentication is required to access this feature.');
+      }
 
-    const requestCount = await prisma.qUESTIONS.count({
-      where: {
-        user_id: userId,
-        created_at: {
-          gte: twentyFourHoursAgo,
-        },
-      },
-    });
+      const userId = req.user.id;
 
-    if (requestCount >= DAILY_REQUEST_LIMIT) {
-      return next(new ErrorHandler('You have exceeded the daily request limit.', 429));
+
+      const user = await prisma.uSERS.findUnique({ where: { user_id: userId } });
+      if (!user) {
+        throw new AuthenticationError('Authentication is required to accces this feature')
+      }
+
+      const plan = user.plan;
+      const limit = USAGE_LIMITS[plan]?.[usageType];
+
+      if (limit === undefined) {
+
+        return next();
+      }
+
+      const now = new Date();
+      const cycleStartDate = new Date(now);
+      cycleStartDate.setDate(now.getDate() - USAGE_CYCLE_DAYS);
+      const currentUsage = await prisma.usageTracker.findUnique({
+        where: { userId_usageType: { userId, usageType } },
+      });
+
+      if (currentUsage && currentUsage.cycleStartDate > cycleStartDate) {
+
+        if (currentUsage.count >= limit) {
+          throw new RateLimitError(`Usage limit of ${limit} for ${usageType} exceeded for the current cycle.`);
+        }
+        // Increment the count
+        await prisma.usageTracker.update({
+          where: { id: currentUsage.id },
+          data: { count: { increment: 1 } },
+        });
+      } else {
+        await prisma.usageTracker.upsert({
+          where: { userId_usageType: { userId, usageType } },
+          create: {
+            userId,
+            usageType,
+            count: 1,
+            cycleStartDate: now,
+          },
+          update: {
+            count: 1,
+            cycleStartDate: now,
+          },
+        });
+      }
+      return next();
+    } catch (error) {
+      return next(error);
     }
-
-    next();
-
-  } catch (error) {
-    next(error);
-  }
+  };
 };
 
 export default rateLimiter;

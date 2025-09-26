@@ -1,67 +1,94 @@
-import LLMError from '../utils/errors/LLMError.js';
-import withTimeout from '../utils/withTimeout.js';
+// src/llm/LLMProvider.js
+import dotenv from "dotenv";
+dotenv.config();
 
-const LLM_TIMEOUT = 10000;
-const LLM_TIMEOUT_FALLBACK = 5000;
+import fetch from "node-fetch"; // if using Node <18, otherwise global fetch exists
+import LLMError from "../utils/errors/LLMError.js";
+import withTimeout from "../utils/withTimeout.js";
+
+const LLM_TIMEOUT = 10000;        // 10s for primary (Gemini)
+const LLM_TIMEOUT_FALLBACK = 5000; // 5s for fallback (HuggingFace)
 
 class LLMProvider {
   constructor() {
-    //so don't be confused with the this context
-    //we are passing this.callPrimary as a callback(withTimeout),so for us not loose the context of this
-    //we explicitly bound it to this
-    //for more info text me
+    this.geminiKey = process.env.GEMINI_API_KEY;
+    this.hfKey = process.env.HUGGINGFACE_API_KEY;
+
+    if (!this.geminiKey || !this.hfKey) {
+      throw new Error("Missing one or more LLM API keys in .env");
+    }
+
+    // Bind functions so context isn't lost when passed as callbacks
     this.callPrimary = this.callPrimary.bind(this);
     this.callFallback = this.callFallback.bind(this);
   }
 
   async generateText(prompt) {
-    return this.tryWithAfallBack({
-      primary: { fn: this.callPrimary, timeOut: LLM_TIMEOUT },
-      fallback: { fn: this.callFallback, timeOut: LLM_TIMEOUT_FALLBACK },
-      prompt
+    return this.tryWithFallback({
+      primary: { fn: this.callPrimary, timeout: LLM_TIMEOUT },
+      fallback: { fn: this.callFallback, timeout: LLM_TIMEOUT_FALLBACK },
+      prompt,
     });
   }
 
-  async tryWithAfallBack({ primary, fallback, prompt }) {
-    const primaryCallWithTimeout = withTimeout(primary.fn, primary.timeout);
+  async tryWithFallback({ primary, fallback, prompt }) {
+    const primaryCall = withTimeout(primary.fn, primary.timeout);
+
     try {
-      const result = await primaryCallWithTimeout(prompt);
+      const result = await primaryCall(prompt);
       return { text: result, fallbackUsed: false };
-    }
-    catch (primaryError) {
+    } catch (primaryError) {
+      console.warn("Primary failed:", primaryError.message);
+
       if (!fallback) {
-        throw new LLMError('Primary AI service is unavailable.');
+        throw new LLMError("Primary AI service is unavailable.");
       }
-      const fallbackCallWithTimeout = withTimeout(fallback.fn, fallback.timeOut);
+
+      const fallbackCall = withTimeout(fallback.fn, fallback.timeout);
+
       try {
-        const result = await fallbackCallWithTimeout(prompt);
-        return { text: result, fallbackUsed: true }
-      } catch (fallbackerror) {
-        throw new LLMError('Both primary and fallback AI services are unavailable.');
+        const result = await fallbackCall(prompt);
+        return { text: result, fallbackUsed: true };
+      } catch (fallbackError) {
+        throw new LLMError("Both primary and fallback AI services are unavailable.");
       }
     }
   }
 
+  // --- Primary: Gemini ---
   async callPrimary(prompt) {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.geminiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+        }),
+      }
+    );
 
-    try {
-      const response = await axios.post('http://localhost:5002/llm/fallback', { prompt });
-      return response.data.text;
-    } catch (error) {
-      const message = error.response ? `API responded with status ${error.response.status}` : error.message;
-      throw new LLMError(`Fallback LLM provider failed: ${message}`);
-    }
+    if (!response.ok) throw new Error(`Gemini failed: ${response.status}`);
+    const data = await response.json();
+
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || "No response from Gemini";
   }
 
-
+  // --- Fallback: HuggingFace ---
   async callFallback(prompt) {
-    try {
-      const response = await axios.post('http://localhost:5002/llm/fallback', { prompt });
-      return response.data.text;
-    } catch (error) {
-      const message = error.response ? `API responded with status ${error.response.status}` : error.message;
-      throw new LLMError(`Fallback LLM provider failed: ${message}`);
-    }
+    const response = await fetch("https://api-inference.huggingface.co/models/gpt2", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.hfKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ inputs: prompt }),
+    });
+
+    if (!response.ok) throw new Error(`HuggingFace failed: ${response.status}`);
+    const data = await response.json();
+
+    return data[0]?.generated_text || "No response from HuggingFace";
   }
 }
 

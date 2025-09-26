@@ -9,7 +9,7 @@ import crypto from "crypto";             // For generating random filenames
 dotenv.config();
 
 
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY; 
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const VOICE_ID = "21m00Tcm4TlvDq8ikWAM"; // Rachel voice ID from ElevenLabs
 const TTS_TIMEOUT = 60000; // 60 seconds timeout for API calls
 
@@ -29,7 +29,7 @@ if (!fs.existsSync(audioDirectory)) {
  */
 function splitText(text, maxLength = 2000) {
   const chunks = [];
-  let current = "";  
+  let current = "";
 
   // Split text by words (spaces) to maintain readability
   // This prevents cutting words in the middle
@@ -42,7 +42,7 @@ function splitText(text, maxLength = 2000) {
       current += (current ? " " : "") + word; // Add word to current chunk
     }
   });
-  
+
   if (current) chunks.push(current);
   return chunks;
 }
@@ -53,9 +53,9 @@ function splitText(text, maxLength = 2000) {
  * @returns {string} Unique filename with timestamp and random hash
  */
 function generateUniqueFilename() {
-  const timestamp = Date.now(); 
-  const randomHash = crypto.randomBytes(4).toString('hex'); 
-  return `tts_${timestamp}_${randomHash}.mp3`; 
+  const timestamp = Date.now();
+  const randomHash = crypto.randomBytes(4).toString('hex');
+  return `tts_${timestamp}_${randomHash}.mp3`;
 }
 
 /**
@@ -73,16 +73,16 @@ async function queryTTSChunk(text) {
     {
       method: "POST",
       headers: {
-        "xi-api-key": ELEVENLABS_API_KEY, 
-        "Content-Type": "application/json",  
-        Accept: "audio/mpeg"                 
+        "xi-api-key": ELEVENLABS_API_KEY,
+        "Content-Type": "application/json",
+        Accept: "audio/mpeg"
       },
       body: JSON.stringify({
-        text, 
+        text,
         model_id: "eleven_multilingual_v2",
         voice_settings: {
-          stability: 0.3,       
-          similarity_boost: 0.7 
+          stability: 0.3,
+          similarity_boost: 0.7
         }
       })
     }
@@ -106,7 +106,7 @@ async function queryTTSChunk(text) {
  * @returns {Function} Wrapped function that will timeout after specified ms
  */
 function withTimeout(fn, ms) {
-  return function(...args) {
+  return function (...args) {
     return new Promise((resolve, reject) => {
       // Set up timeout timer
       const timeoutId = setTimeout(() => {
@@ -132,7 +132,7 @@ function withTimeout(fn, ms) {
  */
 class TTSService {
   constructor() {
-    
+
     this._actualSynthesize = this._actualSynthesize.bind(this);
   }
 
@@ -144,8 +144,8 @@ class TTSService {
    */
   async synthesize(text) {
     console.log(`Synthesizing audio: "${text.substring(0, 100)}${text.length > 100 ? '...' : ''}"`);
-    
-    
+
+
     const synthesizeWithTimeout = withTimeout(this._actualSynthesize, TTS_TIMEOUT);
 
     try {
@@ -181,8 +181,8 @@ class TTSService {
         const chunks = splitText(text);
         console.log(`Split into ${chunks.length} chunk(s)`);
 
-        const combinedAudio = []; 
-        
+        const combinedAudio = [];
+
         // Process chunks one by one to maintain correct order
         for (let i = 0; i < chunks.length; i++) {
           console.log(`Processing chunk ${i + 1}/${chunks.length}...`);
@@ -195,11 +195,11 @@ class TTSService {
       }
 
       console.log(`Audio saved: ${filePath}`);
-      
+
       // Return web-accessible path 
       // This path can be used in HTML audio tags: <audio src="/audio/filename.mp3">
       return `/audio/${filename}`;
-      
+
     } catch (err) {
       console.error("Error in ElevenLabs TTS:", err);
       throw new Error(`TTS API Error: ${err.message}`);
@@ -212,7 +212,7 @@ class TTSService {
    * @param {number} maxAgeHours - Maximum age in hours (default: 24 hours)
    */
   cleanupOldFiles(maxAgeHours = 24) {
-    const maxAgeMs = maxAgeHours * 60 * 60 * 1000; 
+    const maxAgeMs = maxAgeHours * 60 * 60 * 1000;
     const now = Date.now();
 
     try {
@@ -229,7 +229,7 @@ class TTSService {
 
           // Delete if file is older than allowed age
           if (fileAge > maxAgeMs) {
-            fs.unlinkSync(filePath); 
+            fs.unlinkSync(filePath);
             cleanedCount++;
             console.log(`Cleaned up old file: ${file}`);
           }
@@ -254,7 +254,6 @@ ttsService.cleanupOldFiles();
 // Export the service so other files can use it
 export default ttsService;
 
-/
 console.log(" Starting TTS Service Test...");
 console.log(" API Key status:", ELEVENLABS_API_KEY ? "Loaded" : "MISSING!");
 
@@ -265,14 +264,14 @@ async function quickTest() {
   try {
     console.log(" Testing with text:", testText);
     console.log(" Please wait while we generate the audio...");
-    
+
     // This is the main call that converts text to speech
     const result = await ttsService.synthesize(testText);
-    
+
     console.log(" SUCCESS! Audio file created:", result);
     console.log(" Full path:", path.resolve(process.cwd(), 'public', result));
     console.log(" You can now play the audio file!");
-    
+
   } catch (error) {
     console.error(" TEST FAILED:", error.message);
   }

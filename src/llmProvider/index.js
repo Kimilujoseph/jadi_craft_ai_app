@@ -15,7 +15,8 @@ class LLMProvider {
     this.hfKey = process.env.HuggingFace_API_KEY;
 
     if (!this.geminiKey || !this.hfKey) {
-      throw new Error("❌ Missing one or more LLM API keys in .env");
+      console.warn("⚠️ Missing one or more LLM API keys in .env. LLM functionality will be disabled.");
+      //throw new LLMError("❌ Missing one or more LLM API keys in .env");
     }
 
     this.callPrimary = this.callPrimary.bind(this);

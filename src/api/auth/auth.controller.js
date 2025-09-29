@@ -4,6 +4,7 @@ import { hashPassword, comparePassword, generateToken } from '../../utils/helper
 import AuthenticationError from '../../utils/errors/AuthenticationError.js';
 import DatabaseError from '../../utils/errors/DatabaseError.js';
 import NotFoundError from '../../utils/errors/NotFoundError.js';
+import ConflictError from '../../utils/errors/ConflictError.js';
 const prisma = new PrismaClient();
 
 export const signup = async (req, res, next) => {
@@ -20,6 +21,10 @@ export const signup = async (req, res, next) => {
         //const token = generateToken({ id: user.user_id });
         res.status(201).json({ message: "User created successfully" });
     } catch (error) {
+        if (error.code === 'P2002') {
+            throw new ConflictError('Email already in use.');
+        }
+        console.log(error)
         throw new DatabaseError("Internal server error")
     }
 };
@@ -35,9 +40,15 @@ export const signin = async (req, res, next) => {
         if (!isMatch) {
             throw new AuthenticationError('Invalid credential')
         }
-        const token = generateToken({ id: user.user_id, name: user.name, email: user.email, plan: user.plan });
-        res.status(200).json({ token });
+        const token = generateToken({ id: user.user_id.toString(), name: user.name, email: user.email, plan: user.plan });
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            path: '/',
+            sameSite: 'strict'
+        }).status(200).json({ message: 'Signed in successfully' });
     } catch (error) {
+        console.log(error)
         if (error instanceof AuthenticationError || error instanceof NotFoundError) {
             throw error
         }

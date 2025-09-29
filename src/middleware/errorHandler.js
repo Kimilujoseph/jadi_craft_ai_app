@@ -4,10 +4,15 @@ const errorHandler = (err, req, res, next) => {
   console.error(err.stack);
 
   if (err instanceof BaseError) {
-    return res.status(err.statusCode).json({
+    const statusCode = typeof err.statusCode === 'number' ? err.statusCode : 500;
+    const response = {
       success: false,
       error: err.message,
-    });
+    };
+    if (err.errors) {
+      response.errors = err.errors;
+    }
+    return res.status(statusCode).json(response);
   }
 
   res.status(500).json({

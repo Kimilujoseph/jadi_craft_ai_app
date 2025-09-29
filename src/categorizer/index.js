@@ -68,7 +68,7 @@ import fetch from "node-fetch"; // Assumes a Node.js environment
  */
 class Categorizer {
   constructor() {
-    // It's best practice to load the API key from a secure environment variable
+    // It's best practice to load the API k ey from a secure environment variable
     this.apiKey = process.env.LLM_API_KEY; 
     if (!this.apiKey) {
       throw new Error("LLM_API_KEY environment variable is not set.");

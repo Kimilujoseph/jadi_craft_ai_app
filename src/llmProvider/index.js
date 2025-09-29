@@ -13,9 +13,10 @@ class LLMProvider {
   constructor() {
     this.geminiKey = process.env.GEMINI_API_KEY;
     this.hfKey = process.env.HuggingFace_API_KEY;
+    this.hfModel = process.env.HF_MODEL; // configurable model
 
     if (!this.geminiKey || !this.hfKey) {
-      throw new Error("❌ Missing one or more LLM API keys in .env");
+      throw new LLMError("❌ Missing one or more LLM API keys in .env");
     }
 
     this.callPrimary = this.callPrimary.bind(this);
@@ -67,12 +68,11 @@ class LLMProvider {
    */
   async callPrimary(prompt) {
     const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.geminiKey}`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${this.geminiKey}`,
         },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
@@ -82,14 +82,14 @@ class LLMProvider {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Gemini API failed: ${response.status} - ${errorText.substring(0, 100)}...`);
+      throw new LLMError(`Gemini API failed: ${response.status} - ${errorText.substring(0, 100)}...`);
     }
 
     const data = await response.json();
     const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!generatedText) {
-      throw new Error("Gemini returned no text content.");
+      throw new LLMError("Gemini returned no text content.");
     }
 
     return generatedText;
@@ -97,10 +97,9 @@ class LLMProvider {
 
   /**
    * Fallback: Hugging Face Inference API
-   * (Replace `gpt2` with a stronger model, e.g., `tiiuae/falcon-7b-instruct`)
    */
   async callFallback(prompt) {
-    const response = await fetch("https://api-inference.huggingface.co/models/gpt2", {
+    const response = await fetch(`https://api-inference.huggingface.co/models/${this.hfModel}`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${this.hfKey}`,
@@ -111,14 +110,14 @@ class LLMProvider {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Hugging Face API failed: ${response.status} - ${errorText.substring(0, 100)}...`);
+      throw new LLMError(`Hugging Face API failed: ${response.status} - ${errorText.substring(0, 100)}...`);
     }
 
     const data = await response.json();
     const generatedText = data[0]?.generated_text;
 
     if (!generatedText) {
-      throw new Error("Hugging Face returned no text content.");
+      throw new LLMError("Hugging Face returned no text content.");
     }
 
     return generatedText;

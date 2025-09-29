@@ -41,11 +41,11 @@ router.post(
         wantsAudio,
         userId,
         idempotencyKey,
-        chatId, // Pass chatId for conversation history
+        chatId,
       });
       res.status(200).json(response);
     } catch (error) {
-      next(error); // Forward all errors to the global error handler
+      next(error);
     }
   }
 );

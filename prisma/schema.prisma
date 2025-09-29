@@ -48,6 +48,7 @@ model Message {
   refinedPrompt  String?  @db.Text
   audioUrl     String?
   fallbackUsed Boolean? @default(false)
+  status    MessageStatus @default(COMPLETED)
   
   // Relation to failure logs
   failures  FailureLog[]
@@ -108,4 +109,10 @@ enum FailureType {
 enum UsageType {
   AUDIO_GENERATION
   CHAT_MESSAGES
+}
+
+enum MessageStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
 }

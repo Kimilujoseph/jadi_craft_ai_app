@@ -4,134 +4,177 @@ import templateEngine from '../templateEngine/index.js';
 import llmProvider from '../llmProvider/index.js';
 import ttsService from '../ttsService/index.js';
 import Response from '../models/Response.js';
-import ConflictError from '../utils/errors/ConflictError.js';
-import DatabaseError from '../utils/errors/DatabaseError.js';
+import { Prisma } from '@prisma/client';
 import LLMError from '../utils/errors/LLMError.js';
 import TTSError from '../utils/errors/TTSError.js';
 
 class PromptOrchestrator {
   async handleQuestion({ question, wantsAudio, userId, idempotencyKey, chatId = null }) {
-    const existingMessage = await prisma.message.findUnique({
-      where: { idempotencyKey },
-    });
-
-    if (existingMessage) {
-      throw new ConflictError('This request has already been processed.');
+    // Step 1: Handle Idempotency
+    const existingResponse = await this._getExistingResponse(idempotencyKey, userId);
+    if (existingResponse) {
+      return existingResponse;
     }
 
-    let userMessage;
+
+
+    const { userMessage, chat } = await prisma.$transaction(async (tx) => {
+      return await this._initialWrite(tx, { question, userId, idempotencyKey, chatId });
+    });
 
     try {
 
-      const chat = await this._findOrCreateChat(userId, chatId, question);
-      chatId = chat.id;
+      const { text, fallbackUsed, audioUrl } = await this._runOrchestration(userMessage, wantsAudio);
 
 
-      userMessage = await prisma.message.create({
-        data: {
-          chatId: chatId,
-          role: 'user',
-          content: question,
-          idempotencyKey,
-        },
+      const finalResponse = await prisma.$transaction(async (tx) => {
+        return await this._finalWrite(tx, { userMessage, text, fallbackUsed, audioUrl, chatId: chat.id });
       });
 
+      return finalResponse;
 
-      const category = await categorizer.categorize(question);
-      const refinedPrompt = templateEngine.buildPrompt(category, question);
-
-
-      await prisma.message.update({
-        where: { id: userMessage.id },
-        data: { refinedPrompt },
-      });
-
-      const { text, fallbackUsed } = await llmProvider.generateText(refinedPrompt);
-
-      let audioUrl = wantsAudio ? await this._synthesizeAudioGracefully(text, userMessage.id) : null;
-
-      const assistantMessage = await prisma.message.create({
-        data: {
-          chatId: chatId,
-          role: 'assistant',
-          content: text,
-          audioUrl,
-          fallbackUsed,
-        },
-      });
-
-      // Step 5: Return the successful response.
-      return new Response(
-        assistantMessage.content,
-        assistantMessage.audioUrl,
-        assistantMessage.fallbackUsed,
-        null,
-        chatId
-      );
     } catch (error) {
       console.error(`Critical error in PromptOrchestrator for user ${userId}:`, error.message);
 
-
-      if (userMessage && userMessage.id) {
-        await this._logFailure(error, userMessage.id);
-      }
-
-      // Re-throw the original, structured error for the global middleware to handle.
+      await this._handleFailure(userMessage, error);
       throw error;
     }
   }
 
-  /**
-   * A private helper to find an existing chat or create a new one.
-   */
-  async _findOrCreateChat(userId, chatId, question) {
+  async _getExistingResponse(idempotencyKey, userId) {
+    const userMessage = await prisma.message.findUnique({
+      where: { idempotencyKey },
+    });
+
+    if (userMessage) {
+      if (userMessage.status === 'PROCESSING') {
+        //so we think of implementing a websocket to push the result once ready
+        return new Response(null, null, null, "Your previous request is still being processed.", userMessage.chatId);
+      }
+
+      const assistantMessage = await prisma.message.findFirst({
+        where: {
+          chatId: userMessage.chatId,
+          role: 'assistant',
+          createdAt: { gt: userMessage.createdAt }
+        },
+        orderBy: { createdAt: 'asc' }
+      });
+
+      if (assistantMessage) {
+        return new Response(
+          assistantMessage.content,
+          assistantMessage.audioUrl,
+          assistantMessage.fallbackUsed,
+          null,
+          assistantMessage.chatId
+        );
+      }
+    }
+    return null;
+  }
+
+  async _initialWrite(tx, { question, userId, idempotencyKey, chatId }) {
+    const chat = await this._findOrCreateChat(tx, userId, chatId, question);
+    const userMessage = await tx.message.create({
+      data: {
+        chatId: chat.id,
+        role: 'user',
+        content: question,
+        idempotencyKey,
+        status: 'PROCESSING',
+      },
+    });
+    return { userMessage, chat };
+  }
+
+  async _runOrchestration(userMessage, wantsAudio) {
+    const { question } = userMessage;
+    const category = await categorizer.categorize(question);
+    const refinedPrompt = templateEngine.buildPrompt(category, question);
+
+    await prisma.message.update({
+      where: { id: userMessage.id },
+      data: { refinedPrompt },
+    });
+
+    const { text, fallbackUsed } = await llmProvider.generateText(refinedPrompt);
+    const audioUrl = wantsAudio ? await this._synthesizeAudioGracefully(text, userMessage.id) : null;
+
+    return { text, fallbackUsed, audioUrl };
+  }
+
+  async _finalWrite(tx, { userMessage, text, fallbackUsed, audioUrl, chatId }) {
+    const assistantMessage = await tx.message.create({
+      data: {
+        chatId: chatId,
+        role: 'assistant',
+        content: text,
+        audioUrl,
+        fallbackUsed,
+        status: 'COMPLETED',
+      },
+    });
+
+    await tx.message.update({
+      where: { id: userMessage.id },
+      data: { status: 'COMPLETED' },
+    });
+
+    return new Response(
+      assistantMessage.content,
+      assistantMessage.audioUrl,
+      assistantMessage.fallbackUsed,
+      null,
+      chatId
+    );
+  }
+
+  async _handleFailure(userMessage, error) {
+    await prisma.message.update({
+      where: { id: userMessage.id },
+      data: { status: 'FAILED' },
+    });
+    await this._logFailure(error, userMessage.id);
+  }
+
+  async _findOrCreateChat(tx, userId, chatId, question) {
     if (chatId) {
-      const chat = await prisma.chat.findUnique({ where: { id: chatId } });
-      // Optional: Check if chat belongs to the user.
+      const chat = await tx.chat.findUnique({ where: { id: chatId } });
       if (chat && chat.userId === userId) return chat;
     }
-    return prisma.chat.create({
+    return tx.chat.create({
       data: {
         userId,
         title: question.substring(0, 40),
       },
     });
   }
+
   async _logFailure(error, userMessageId) {
-    if (!userMessageId) {
-      console.error("Cannot log failure: userMessageId was not provided.");
-      return;
-    }
-
-    let failureType = 'PROMPT_ORCHESTRATION'; // Default type
-
+    let failureType = 'PROMPT_ORCHESTRATION';
     if (error instanceof LLMError) {
-      failureType = 'LLM_PRIMARY'; // Or a more general 'LLM'
+      failureType = 'LLM_PRIMARY';
     } else if (error instanceof TTSError) {
       failureType = 'TTS_SERVICE';
     }
 
-    try {
-      await prisma.failureLog.create({
-        data: {
-          messageId: userMessageId,
-          failureType: failureType,
-          errorMessage: error.message,
-          errorCode: error.statusCode ? String(error.statusCode) : null,
-        },
-      });
-    } catch (logError) {
-      console.error("CRITICAL: Failed to write to FailureLog.", logError);
-    }
+    await prisma.failureLog.create({
+      data: {
+        messageId: userMessageId,
+        failureType: failureType,
+        errorMessage: error.message,
+        errorCode: error.statusCode ? String(error.statusCode) : null,
+      },
+    });
   }
 
   async _synthesizeAudioGracefully(text, userMessageId) {
     try {
-      const audioUrl = await ttsService.synthesize(text);
-      return audioUrl;
+      return await ttsService.synthesize(text);
     } catch (ttsError) {
       await this._logFailure(ttsError, userMessageId);
-      return null
+      return null;
     }
   }
 }

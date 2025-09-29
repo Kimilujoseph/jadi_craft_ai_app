@@ -3,6 +3,7 @@ import morgan from "morgan"
 import cookieParser from 'cookie-parser';
 import askRouter from './api/ask.js';
 import authRouter from './api/auth/auth.route.js';
+import chatRouter from './api/chat/chat.route.js';
 import errorHandler from './middleware/errorHandler.js';
 
 const app = express()
@@ -18,6 +19,7 @@ const App = async (app) => {
 
    app.use('/api/v1', askRouter);
    app.use('/api/v1/auth', authRouter);
+   app.use('/api/v1/chats', chatRouter);
 
    // Error Handling Middleware
    app.use(errorHandler);

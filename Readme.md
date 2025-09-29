@@ -34,7 +34,21 @@ The backend follows a service-oriented architecture, orchestrated by a central c
 
 ## API Endpoint
 
-### POST /ask
+## POST /api/v1/auth/signin  and #POST /api/v1/auth/signup
+
+
+**Request Body**
+
+```json
+
+{
+   "email":"someone@gmail.com",
+   "password":"minimum of 8",
+}
+
+```
+
+### POST /api/v1/ask
 
 This is the main endpoint for asking questions.
 

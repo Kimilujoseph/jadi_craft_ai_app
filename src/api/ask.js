@@ -27,7 +27,8 @@ router.post(
   async (req, res, next) => {
     try {
       const { question, wantsAudio = false, chatId = null } = req.body;
-      const userId = req.user.id;
+      console.log("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%",req.user)
+      const userId = req.user.user_id;
 
       if (!question) {
         return res.status(400).json({ message: 'The question field is required.' });

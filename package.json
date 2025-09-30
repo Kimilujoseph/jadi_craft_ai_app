@@ -4,7 +4,7 @@
   "main": "src/index.js",
   "type": "module",
   "scripts": {
-    "dev": "cross-env NODE_ENV=development nodemon ./src/index.js"
+    "dev": "NODE_ENV=development nodemon src/index.js"
   },
   "keywords": [],
   "author": {
@@ -14,18 +14,24 @@
   "license": "ISC",
   "description": "",
   "devDependencies": {
+    "cross-env": "^10.0.0",
     "nodemon": "^3.1.10",
     "prisma": "^6.16.2"
   },
   "dependencies": {
     "@prisma/client": "^6.16.2",
+    "axios": "^1.12.2",
     "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
+    "elevenlabs": "^1.59.0",
     "express": "^5.1.0",
+    "express-validator": "^7.2.1",
+    "http-status-codes": "^2.3.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.1",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "uuid": "^13.0.0"
   }
 }

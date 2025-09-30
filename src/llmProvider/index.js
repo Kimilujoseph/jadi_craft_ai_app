@@ -23,6 +23,11 @@ class LLMProvider {
     this.callFallback = this.callFallback.bind(this);
   }
 
+  /*
+You pass in a prompt (the question).
+It tries Gemini first.
+If Gemini fails, it tries HuggingFace fallback.
+   */
   async generateText(prompt) {
     return this.tryWithFallback({
       primary: { fn: this.callPrimary, timeout: LLM_TIMEOUT },
@@ -31,6 +36,13 @@ class LLMProvider {
     });
   }
 
+/*
+Wraps both calls with a timeout.
+If Gemini works → returns {text: "...", fallbackUsed: false}.
+If Gemini fails → tries HuggingFace.
+If both fail → throws an LLMError.
+ */
+  /*Fallback Logic */
   async tryWithFallback({ primary, fallback, prompt }) {
     const primaryCall = withTimeout(primary.fn, primary.timeout);
 
@@ -55,6 +67,11 @@ class LLMProvider {
     }
   }
 
+  /*
+Calls Gemini API with your prompt.
+Extracts the text response.
+If Gemini doesn’t respond → throws error.
+   */
   // --- Primary: Gemini ---
   async callPrimary(prompt) {
     const response = await fetch(
@@ -73,7 +90,12 @@ class LLMProvider {
 
     return data.candidates?.[0]?.content?.parts?.[0]?.text || "No response from Gemini";
   }
-
+  /*
+  Big picture:
+You first try Gemini (primary).
+If Gemini is slow or fails → fallback to HuggingFace.
+If both fail → throw an error.
+   */
   // --- Fallback: HuggingFace ---
   async callFallback(prompt) {
     const response = await fetch("https://api-inference.huggingface.co/models/gpt2", {

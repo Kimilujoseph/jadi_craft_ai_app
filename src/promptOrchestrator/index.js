@@ -88,21 +88,41 @@ class PromptOrchestrator {
     return { userMessage, chat };
   }
 
-  async _runOrchestration(userMessage, wantsAudio) {
-    const { question } = userMessage;
-    const category = await categorizer.categorize(question);
-    const refinedPrompt = templateEngine.buildPrompt(category, question);
+  // async _runOrchestration(userMessage, wantsAudio) {
+  //   const { question } = userMessage;
+  //   const category = await categorizer.categorize(question);
+  //   const refinedPrompt = templateEngine.buildPrompt(category, question);
 
-    await prisma.message.update({
-      where: { id: userMessage.id },
-      data: { refinedPrompt },
-    });
+  //   await prisma.message.update({
+  //     where: { id: userMessage.id },
+  //     data: { refinedPrompt },
+  //   });
 
-    const { text, fallbackUsed } = await llmProvider.generateText(refinedPrompt);
-    const audioUrl = wantsAudio ? await this._synthesizeAudioGracefully(text, userMessage.id) : null;
+  //   const { text, fallbackUsed } = await llmProvider.generateText(refinedPrompt);
+  //   const audioUrl = wantsAudio ? await this._synthesizeAudioGracefully(text, userMessage.id) : null;
 
-    return { text, fallbackUsed, audioUrl };
+  //   return { text, fallbackUsed, audioUrl };
+  // }
+async _runOrchestration(userMessage, wantsAudio) {
+  const question = userMessage.question || userMessage.content; // support both
+  if (!question) {
+    console.error("⚠️ No question found in userMessage:", userMessage);
+    return { text: "Sorry, I didn’t understand your request.", fallbackUsed: true, audioUrl: null };
   }
+
+  const category = await categorizer.categorize(question);
+  const refinedPrompt = templateEngine.buildPrompt(category, question);
+
+  await prisma.message.update({
+    where: { id: userMessage.id },
+    data: { refinedPrompt },
+  });
+
+  const { text, fallbackUsed } = await llmProvider.generateText(refinedPrompt);
+  const audioUrl = wantsAudio ? await this._synthesizeAudioGracefully(text, userMessage.id) : null;
+
+  return { text, fallbackUsed, audioUrl };
+}
 
   async _finalWrite(tx, { userMessage, text, fallbackUsed, audioUrl, chatId }) {
     const assistantMessage = await tx.message.create({

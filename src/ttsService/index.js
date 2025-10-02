@@ -88,28 +88,5 @@ const ttsService = new TTSService();
 ttsService.cleanupOldFiles();
 export default ttsService;
 
-console.log(" Starting TTS Service Test...");
-console.log(" API Key status:", ELEVENLABS_API_KEY ? "Loaded" : "MISSING!");
 
-// NEW TEST TEXT - More interesting content to hear the voice quality
-const testText = "Welcome to the future of storytelling! With advanced text-to-speech technology, we can bring stories to life in ways never before possible. Imagine listening to ancient tales narrated by crystal-clear AI voices, available anytime, anywhere. This technology bridges generations and preserves cultural heritage for the digital age.";
 
-// async function quickTest() {
-//   try {
-//     console.log(" Testing with text:", testText);
-//     console.log(" Please wait while we generate the audio...");
-
-//     // This is the main call that converts text to speech
-//     const result = await ttsService.synthesize(testText);
-
-//     console.log(" SUCCESS! Audio file created:", result);
-//     console.log(" Full path:", path.resolve(process.cwd(), 'public', result));
-//     console.log(" You can now play the audio file!");
-
-//   } catch (error) {
-//     console.error(" TEST FAILED:", error.message);
-//   }
-// }
-
-// // Run the test immediately when this file is executed
-// quickTest();

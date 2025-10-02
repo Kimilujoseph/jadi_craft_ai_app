@@ -145,7 +145,7 @@ class PromptOrchestrator {
     }
     return tx.chat.create({
       data: {
-        userId,
+        userId: userId,
         title: question.substring(0, 40),
       },
     });

@@ -27,11 +27,11 @@ router.post(
   async (req, res, next) => {
     try {
       const { question, wantsAudio = false, chatId = null } = req.body;
-      console.log("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%",req.user)
+      console.log("🔥 HIT /api/v1/ask route, req.body:", req.body);
       const userId = req.user.user_id;
-
-      if (!question) {
-        return res.status(400).json({ message: 'The question field is required.' });
+// Extra guard for bad input
+      if (!question || question === "undefined" || question.trim() === "") {
+        return res.status(400).json({ message: "The question field is required and cannot be empty." });
       }
 
       const idempotencyKey = req.headers['x-idempotency-key'] || uuidv4();

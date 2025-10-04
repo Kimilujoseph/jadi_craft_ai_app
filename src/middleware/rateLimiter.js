@@ -22,9 +22,10 @@ const USAGE_CYCLE_DAYS = 30;
 const rateLimiter = (usageType) => {
   return async (req, res, next) => {
     try {
-      if (!req.user || !req.user.id) {
-        next()
-        //throw new AuthenticationError('Authentication is required to access this feature.');
+      console.log(req.user)
+      if (!req.user) {
+        //next()
+        throw new AuthenticationError('Authentication is required to access this feature.');
       }
 
       const found_user = req.user;
@@ -32,6 +33,7 @@ const rateLimiter = (usageType) => {
 
 
       const user = await prisma.uSERS.findUnique({ where: { user_id: user_id } });
+      console.log("user@#@#@", user)
       if (!user) {
         throw new AuthenticationError('Authentication is required to accces this feature')
       }

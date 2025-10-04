@@ -1,13 +1,8 @@
 
-
 import fetch from "node-fetch";
-// Correct relative imports within the utils folder
 import { VOICE_ID } from "./config.js";
 import ApiError from "./errors/ApiError.js";
 
-/**
- * Calls the ElevenLabs TTS API for a single text chunk.
- */
 export async function queryTTSChunk(text, apiKey) {
   console.log(`Synthesizing text chunk (${text.length} chars)...`);
 

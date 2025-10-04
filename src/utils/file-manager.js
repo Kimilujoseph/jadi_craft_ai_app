@@ -12,9 +12,6 @@ function generateUniqueFilename() {
   return `tts_${timestamp}_${randomHash}.mp3`;
 }
 
-/**
- * Writes the audio buffer(s) to the file system.
- */
 export function saveAudioFile(audioData) {
   const filename = generateUniqueFilename();
   const filePath = path.join(audioDirectory, filename);
@@ -25,9 +22,6 @@ export function saveAudioFile(audioData) {
   return `/audio/${filename}`;
 }
 
-/**
- * Clean up old audio files.
- */
 export function cleanupOldFiles(maxAgeHours = 24) {
-  // ... (cleanup logic remains the same)
+
 }

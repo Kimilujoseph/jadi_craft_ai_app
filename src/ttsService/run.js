@@ -8,7 +8,7 @@ import ttsService from "./index.js";
 import { ELEVENLABS_API_KEY } from "../utils/config.js"; 
 import ApiError from "../utils/errors/ApiError.js";
 
-const testText = "Narrate a story about the origin of the Maasai people, their culture, traditions, and way of life in East Africa.The Maasai are known for their distinctive customs, dress, and semi-nomadic lifestyle. Their history is rich with tales of migration, resilience, and adaptation to the changing landscapes of Kenya and Tanzania.";
+const testText = "Narrate a story about the origin of the Maasai people, their culture, traditions, and way of life in East Africa.The Maasai are known for their distinctive customs, dress, and semi-nomadic lifestyle.";
 
 /**
  * Executes a quick test of the TTS service and logs the result.

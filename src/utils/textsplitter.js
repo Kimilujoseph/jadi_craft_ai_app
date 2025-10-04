@@ -1,9 +1,6 @@
 
 import { MAX_CHUNK_LENGTH } from "./config.js";
 
-/**
- * Split long text into smaller chunks to avoid API limits.
- */
 export function splitText(text) {
   const chunks = [];
   let current = "";

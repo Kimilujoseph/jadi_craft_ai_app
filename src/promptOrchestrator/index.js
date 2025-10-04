@@ -10,22 +10,21 @@ import TTSError from '../utils/errors/TTSError.js';
 
 class PromptOrchestrator {
   async handleQuestion({ question, wantsAudio, userId, idempotencyKey, chatId = null }) {
-    // Step 1: Handle Idempotency
+
     const existingResponse = await this._getExistingResponse(idempotencyKey, userId);
     if (existingResponse) {
       return existingResponse;
     }
 
-
-
-    const { userMessage, chat } = await prisma.$transaction(async (tx) => {
-      return await this._initialWrite(tx, { question, userId, idempotencyKey, chatId });
-    });
+    let userMessage, chat;
 
     try {
 
-      const { text, fallbackUsed, audioUrl } = await this._runOrchestration(userMessage, wantsAudio);
+      ({ userMessage, chat } = await prisma.$transaction(async (tx) => {
+        return await this._initialWrite(tx, { question, userId, idempotencyKey, chatId });
+      }));
 
+      const { text, fallbackUsed, audioUrl } = await this._runOrchestration(userMessage, wantsAudio);
 
       const finalResponse = await prisma.$transaction(async (tx) => {
         return await this._finalWrite(tx, { userMessage, text, fallbackUsed, audioUrl, chatId: chat.id });
@@ -34,9 +33,15 @@ class PromptOrchestrator {
       return finalResponse;
 
     } catch (error) {
-      console.error(`Critical error in PromptOrchestrator for user ${userId}:`, error.message);
 
-      await this._handleFailure(userMessage, error);
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        return this._getExistingResponse(idempotencyKey, userId);
+      }
+      console.error(`Critical error in PromptOrchestrator for user ${userId}:`, error.message);
+      if (userMessage) {
+
+        await this._handleFailure(userMessage, error);
+      }
       throw error;
     }
   }
@@ -88,41 +93,28 @@ class PromptOrchestrator {
     return { userMessage, chat };
   }
 
-  // async _runOrchestration(userMessage, wantsAudio) {
-  //   const { question } = userMessage;
-  //   const category = await categorizer.categorize(question);
-  //   const refinedPrompt = templateEngine.buildPrompt(category, question);
+  async _runOrchestration(userMessage, wantsAudio) {
+    const question = userMessage.question || userMessage.content; // support both
+    if (question) {
 
-  //   await prisma.message.update({
-  //     where: { id: userMessage.id },
-  //     data: { refinedPrompt },
-  //   });
+      return { text: "Sorry, I didn’t understand your request.", fallbackUsed: true, audioUrl: null };
+    }
 
-  //   const { text, fallbackUsed } = await llmProvider.generateText(refinedPrompt);
-  //   const audioUrl = wantsAudio ? await this._synthesizeAudioGracefully(text, userMessage.id) : null;
+    const category = await categorizer.categorize(question);
+    const refinedPrompt = templateEngine.buildPrompt(category, question);
 
-  //   return { text, fallbackUsed, audioUrl };
-  // }
-async _runOrchestration(userMessage, wantsAudio) {
-  const question = userMessage.question || userMessage.content; // support both
-  if (!question) {
-    console.error("⚠️ No question found in userMessage:", userMessage);
-    return { text: "Sorry, I didn’t understand your request.", fallbackUsed: true, audioUrl: null };
+    console.log("🛠️ Refined Prompt:", refinedPrompt);
+
+    await prisma.message.update({
+      where: { id: userMessage.id },
+      data: { refinedPrompt },
+    });
+
+    const { text, fallbackUsed } = await llmProvider.generateText(refinedPrompt);
+    const audioUrl = wantsAudio ? await this._synthesizeAudioGracefully(text, userMessage.id) : null;
+
+    return { text, fallbackUsed, audioUrl };
   }
-
-  const category = await categorizer.categorize(question);
-  const refinedPrompt = templateEngine.buildPrompt(category, question);
-
-  await prisma.message.update({
-    where: { id: userMessage.id },
-    data: { refinedPrompt },
-  });
-
-  const { text, fallbackUsed } = await llmProvider.generateText(refinedPrompt);
-  const audioUrl = wantsAudio ? await this._synthesizeAudioGracefully(text, userMessage.id) : null;
-
-  return { text, fallbackUsed, audioUrl };
-}
 
   async _finalWrite(tx, { userMessage, text, fallbackUsed, audioUrl, chatId }) {
     const assistantMessage = await tx.message.create({

@@ -7,7 +7,7 @@ import { UsageType } from '@prisma/client';
 const router = express.Router();
 
 router.post(
-  '/',
+  '/ask',
   authMiddleware,
   rateLimiter(UsageType.CHAT_MESSAGES),
   (req, res, next) => {

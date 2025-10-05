@@ -2,7 +2,7 @@ import express from "express";
 import morgan from "morgan"
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
-import askRouter from './api/ask.js';
+import askRouter from './api/ask/ask.route.js';
 import authRouter from './api/auth/auth.route.js';
 import chatRouter from './api/chat/chat.route.js';
 import errorHandler from './middleware/errorHandler.js';

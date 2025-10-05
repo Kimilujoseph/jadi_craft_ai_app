@@ -23,13 +23,14 @@ class PromptOrchestrator {
       ({ userMessage, chat } = await prisma.$transaction(async (tx) => {
         return await this._initialWrite(tx, { question, userId, idempotencyKey, chatId });
       }));
-
+      console.log(`Processing question for user ${userId} in chat ${chat.id}`);
+     // return 0
       const { text, fallbackUsed, audioUrl } = await this._runOrchestration(userMessage, wantsAudio);
 
       const finalResponse = await prisma.$transaction(async (tx) => {
         return await this._finalWrite(tx, { userMessage, text, fallbackUsed, audioUrl, chatId: chat.id });
       });
-
+      finalResponse.chatId = chat.id.toString();
       return finalResponse;
 
     } catch (error) {
@@ -72,7 +73,7 @@ class PromptOrchestrator {
           assistantMessage.audioUrl,
           assistantMessage.fallbackUsed,
           null,
-          assistantMessage.chatId
+          assistantMessage.chatId.toString()
         );
       }
     }
@@ -132,13 +133,13 @@ class PromptOrchestrator {
       where: { id: userMessage.id },
       data: { status: 'COMPLETED' },
     });
-
+     console.log("✅ Finalized messages in DB for userMessage ID:",assistantMessage);
     return new Response(
       assistantMessage.content,
       assistantMessage.audioUrl,
       assistantMessage.fallbackUsed,
       null,
-      chatId
+      assistantMessage.chatId.toString()
     );
   }
 

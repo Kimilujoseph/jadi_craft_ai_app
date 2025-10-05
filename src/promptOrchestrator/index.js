@@ -8,6 +8,8 @@ import { Prisma } from '@prisma/client';
 import LLMError from '../utils/errors/LLMError.js';
 import TTSError from '../utils/errors/TTSError.js';
 
+const SUMMARY_INTERVAL = 10; // Every 10 messages
+
 class PromptOrchestrator {
   async handleQuestion({ question, wantsAudio, userId, idempotencyKey, chatId = null }) {
 
@@ -24,12 +26,19 @@ class PromptOrchestrator {
         return await this._initialWrite(tx, { question, userId, idempotencyKey, chatId });
       }));
       console.log(`Processing question for user ${userId} in chat ${chat.id}`);
-     // return 0
-      const { text, fallbackUsed, audioUrl } = await this._runOrchestration(userMessage, wantsAudio);
+
+      const { text, precis, fallbackUsed, audioUrl } = await this._runOrchestration(userMessage, chat, wantsAudio);
 
       const finalResponse = await prisma.$transaction(async (tx) => {
-        return await this._finalWrite(tx, { userMessage, text, fallbackUsed, audioUrl, chatId: chat.id });
+        return await this._finalWrite(tx, { userMessage, text, precis, fallbackUsed, audioUrl, chatId: chat.id });
       });
+
+      // --- Non-blocking call to update summary ---
+      this._updateRollingSummaryIfNeeded(chat.id).catch(err => {
+        console.error(`Background summary update failed for chat ${chat.id}:`, err.message);
+      });
+      // ----------------------------------------
+
       finalResponse.chatId = chat.id.toString();
       return finalResponse;
 
@@ -40,7 +49,6 @@ class PromptOrchestrator {
       }
       console.error(`Critical error in PromptOrchestrator for user ${userId}:`, error.message);
       if (userMessage) {
-
         await this._handleFailure(userMessage, error);
       }
       throw error;
@@ -94,35 +102,61 @@ class PromptOrchestrator {
     return { userMessage, chat };
   }
 
-  async _runOrchestration(userMessage, wantsAudio) {
-    const question = userMessage.question || userMessage.content; // support both
+  async _runOrchestration(userMessage, chat, wantsAudio) {
+    const question = userMessage.content;
     if (!question) {
-
-      return { text: "Sorry, I didn’t understand your request.", fallbackUsed: true, audioUrl: null };
+      return { text: "Sorry, I didn’t understand your request.", precis: null, fallbackUsed: true, audioUrl: null };
     }
+    const history = await prisma.message.findMany({
+      where: {
+        chatId: chat.id,
+        id: { not: userMessage.id },
+      },
+      orderBy: { createdAt: 'asc' },
+      take: 20, // Limit to the last 20 messages for now
+    });
 
+    // 2. Build context string from history
+    const historyText = history.map(msg => {
+      if (msg.role === 'assistant') {
+        return `assistant: ${msg.precis || msg.content}`;
+      }
+      return `user: ${msg.content}`;
+    }).join('\n');
     const category = await categorizer.categorize(question);
-    const refinedPrompt = templateEngine.buildPrompt(category, question);
+    const refinedPromptForCurrentQuestion = templateEngine.buildPrompt(category, question);
 
-    console.log("🛠️ Refined Prompt:", refinedPrompt);
+    const finalPrompt = `
+      ${chat.summary || ''}
+
+      Recent History:
+      ${historyText}
+
+      New Question:
+      ${refinedPromptForCurrentQuestion}
+    `;
+
+    console.log("🛠️ Final Prompt with History:", finalPrompt);
 
     await prisma.message.update({
       where: { id: userMessage.id },
-      data: { refinedPrompt },
+      data: { refinedPrompt: finalPrompt },
     });
 
-    const { text, fallbackUsed } = await llmProvider.generateText(refinedPrompt);
+    // 5. Generate text (which now includes a precis)
+    const { text, precis, fallbackUsed } = await llmProvider.generateText(finalPrompt);
     const audioUrl = wantsAudio ? await this._synthesizeAudioGracefully(text, userMessage.id) : null;
 
-    return { text, fallbackUsed, audioUrl };
+    return { text, precis, fallbackUsed, audioUrl };
   }
 
-  async _finalWrite(tx, { userMessage, text, fallbackUsed, audioUrl, chatId }) {
+  async _finalWrite(tx, { userMessage, text, precis, fallbackUsed, audioUrl, chatId }) {
     const assistantMessage = await tx.message.create({
       data: {
         chatId: chatId,
         role: 'assistant',
         content: text,
+        precis: precis, // Save the precis
         audioUrl,
         fallbackUsed,
         status: 'COMPLETED',
@@ -133,7 +167,8 @@ class PromptOrchestrator {
       where: { id: userMessage.id },
       data: { status: 'COMPLETED' },
     });
-     console.log("✅ Finalized messages in DB for userMessage ID:",assistantMessage);
+
+    console.log("✅ Finalized messages in DB for userMessage ID:", assistantMessage.id);
     return new Response(
       assistantMessage.content,
       assistantMessage.audioUrl,
@@ -153,13 +188,17 @@ class PromptOrchestrator {
 
   async _findOrCreateChat(tx, userId, chatId, question) {
     if (chatId) {
-      const chat = await tx.chat.findUnique({ where: { id: chatId } });
+      const chat = await tx.chat.findUnique({
+        where: { id: chatId },
+        include: { messages: false }, // Summary is on the chat model itself
+      });
       if (chat && chat.userId === userId) return chat;
     }
     return tx.chat.create({
       data: {
         userId: userId,
         title: question.substring(0, 40),
+        summary: 'This chat is about: ' + question.substring(0, 100),
       },
     });
   }
@@ -188,6 +227,57 @@ class PromptOrchestrator {
     } catch (ttsError) {
       await this._logFailure(ttsError, userMessageId);
       return null;
+    }
+  }
+
+  async _updateRollingSummaryIfNeeded(chatId) {
+    const messageCount = await prisma.message.count({ where: { chatId } });
+
+    if (messageCount > 0 && messageCount % SUMMARY_INTERVAL === 0) {
+      console.log(`📈 Triggering summary update for chat ${chatId} at ${messageCount} messages.`);
+
+      const chat = await prisma.chat.findUnique({ where: { id: chatId } });
+      if (!chat) return;
+
+      const messagesToSummarize = await prisma.message.findMany({
+        where: {
+          chatId: chatId,
+          // A more robust implementation would fetch messages since the last summary.
+          // For now, we fetch the last `SUMMARY_INTERVAL` messages.
+        },
+        orderBy: { createdAt: 'desc' },
+        take: SUMMARY_INTERVAL,
+      });
+
+      const recentHistoryText = messagesToSummarize.reverse().map(msg => {
+        if (msg.role === 'assistant') {
+          return `assistant: ${msg.precis || msg.content}`;
+        }
+        return `user: ${msg.content}`;
+      }).join('\n');
+
+      const summaryPrompt = `
+        You are a conversation summarizer. Here is the existing summary of the conversation:
+        ---
+        ${chat.summary || 'No summary yet.'}
+        ---
+        
+        Here are the most recent messages:
+        ---
+        ${recentHistoryText}
+        ---
+
+        Please create a new, updated summary that incorporates the new information.
+      `;
+
+      const newSummary = await llmProvider.generateSummary(summaryPrompt);
+
+      await prisma.chat.update({
+        where: { id: chatId },
+        data: { summary: newSummary },
+      });
+
+      console.log(`✅ Successfully updated summary for chat ${chatId}.`);
     }
   }
 }

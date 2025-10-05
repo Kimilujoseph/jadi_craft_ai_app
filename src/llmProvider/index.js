@@ -21,6 +21,7 @@ class LLMProvider {
 
     this.callPrimary = this.callPrimary.bind(this);
     this.callFallback = this.callFallback.bind(this);
+    this.callPrimaryForText = this.callPrimaryForText.bind(this);
   }
 
   /**
@@ -36,6 +37,23 @@ class LLMProvider {
   }
 
   /**
+   * Entry point for generating a summary.
+   * @param {string} prompt
+   */
+  async generateSummary(prompt) {
+    // For summaries, we'll just use the primary provider without fallback for simplicity.
+    try {
+      const summary = await this.callPrimaryForText(prompt);
+      console.log("✅ Summary generation succeeded");
+      return summary;
+    } catch (error) {
+      console.error("❌ Summary generation failed:", error.message);
+      // In a real app, you might want a more robust retry or a silent failure.
+      throw new LLMError("Failed to generate summary.");
+    }
+  }
+
+  /**
    * Try primary LLM, then fallback if needed.
    */
   async tryWithFallback({ primary, fallback, prompt }) {
@@ -44,7 +62,8 @@ class LLMProvider {
     try {
       const result = await primaryCall(prompt);
       console.log("✅ Primary LLM (Gemini) succeeded");
-      return { text: result, fallbackUsed: false };
+      // The primary now returns an object with fullAnswer and precis
+      return { text: result.fullAnswer, precis: result.precis, fallbackUsed: false };
     } catch (primaryError) {
       console.warn("⚠️ Primary LLM failed:", primaryError.message);
 
@@ -55,7 +74,8 @@ class LLMProvider {
       try {
         const result = await fallbackCall(prompt);
         console.log("✅ Fallback LLM (Hugging Face) succeeded");
-        return { text: result, fallbackUsed: true };
+        // Fallback returns only text, so precis is null
+        return { text: result, precis: null, fallbackUsed: true };
       } catch (fallbackError) {
         console.error("❌ Both LLMs failed:", fallbackError.message);
         throw new LLMError("Both primary and fallback AI services are unavailable.");
@@ -67,8 +87,62 @@ class LLMProvider {
    * Primary: Google Gemini
    */
   async callPrimary(prompt) {
+    const structuredPrompt = `
+      You are an expert AI assistant. Please provide a detailed answer to the following prompt, and also a short, one or two-sentence summary of your answer.
+      Respond with a valid JSON object with two keys: "fullAnswer" and "precis".
+
+      Prompt:
+      ---
+      ${prompt}
+      ---
+    `;
+
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.geminiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${this.geminiKey}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: structuredPrompt }] }],
+          generationConfig: {
+            response_mime_type: "application/json",
+          },
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new LLMError(`Gemini API failed: ${response.status} - ${errorText.substring(0, 100)}...`);
+    }
+
+    const data = await response.json();
+    const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!generatedText) {
+      throw new LLMError("Gemini returned no text content.");
+    }
+
+    try {
+      const parsed = JSON.parse(generatedText);
+      if (!parsed.fullAnswer || !parsed.precis) {
+        throw new LLMError("Gemini response is missing 'fullAnswer' or 'precis' keys.");
+      }
+      return { fullAnswer: parsed.fullAnswer, precis: parsed.precis };
+    } catch (e) {
+      console.error("Error parsing JSON from Gemini:", e);
+      throw new LLMError("Failed to parse JSON response from Gemini.");
+    }
+  }
+
+  /**
+   * Simplified Primary Call for Plain Text (for summaries)
+   */
+  async callPrimaryForText(prompt) {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${this.geminiKey}`,
       {
         method: "POST",
         headers: {
@@ -89,7 +163,7 @@ class LLMProvider {
     const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!generatedText) {
-      throw new LLMError("Gemini returned no text content.");
+      throw new LLMError("Gemini returned no text content for summary.");
     }
 
     return generatedText;

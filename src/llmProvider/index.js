@@ -98,7 +98,7 @@ class LLMProvider {
     `;
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${this.geminiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.geminiKey}`,
       {
         method: "POST",
         headers: {
@@ -142,7 +142,7 @@ class LLMProvider {
    */
   async callPrimaryForText(prompt) {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${this.geminiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.geminiKey}`,
       {
         method: "POST",
         headers: {

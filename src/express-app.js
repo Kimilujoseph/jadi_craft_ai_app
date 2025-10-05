@@ -7,8 +7,6 @@ import authRouter from './api/auth/auth.route.js';
 import chatRouter from './api/chat/chat.route.js';
 import errorHandler from './middleware/errorHandler.js';
 
-const app = express()
-
 const App = async (app) => {
   // Add CORS middleware before other middleware
   app.use(
@@ -42,6 +40,5 @@ const App = async (app) => {
   // Error Handling Middleware
   app.use(errorHandler);
 }
-
 
 export { App }

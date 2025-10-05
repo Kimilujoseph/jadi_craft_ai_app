@@ -6,7 +6,7 @@ import fetch from "node-fetch"; // only needed if Node < 18
 import LLMError from "../utils/errors/LLMError.js";
 import withTimeout from "../utils/withTimeout.js";
 
-const LLM_TIMEOUT = 10000;          // 10s for primary
+const LLM_TIMEOUT = 20000;          // 10s for primary
 const LLM_TIMEOUT_FALLBACK = 5000;  // 5s for fallback
 
 class LLMProvider {

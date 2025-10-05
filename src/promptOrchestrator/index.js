@@ -7,6 +7,7 @@ import Response from '../models/Response.js';
 import { Prisma } from '@prisma/client';
 import LLMError from '../utils/errors/LLMError.js';
 import TTSError from '../utils/errors/TTSError.js';
+import webSocketManager from '../utils/WebSocketManager.js';
 
 const SUMMARY_INTERVAL = 10; // Every 10 messages
 
@@ -30,7 +31,7 @@ class PromptOrchestrator {
       const { text, precis, fallbackUsed, audioUrl } = await this._runOrchestration(userMessage, chat, wantsAudio);
 
       const finalResponse = await prisma.$transaction(async (tx) => {
-        return await this._finalWrite(tx, { userMessage, text, precis, fallbackUsed, audioUrl, chatId: chat.id });
+        return await this._finalWrite(tx, { userMessage, text, precis, fallbackUsed, audioUrl, chatId: chat.id, userId });
       });
 
       // --- Non-blocking call to update summary ---
@@ -150,7 +151,7 @@ class PromptOrchestrator {
     return { text, precis, fallbackUsed, audioUrl };
   }
 
-  async _finalWrite(tx, { userMessage, text, precis, fallbackUsed, audioUrl, chatId }) {
+  async _finalWrite(tx, { userMessage, text, precis, fallbackUsed, audioUrl, chatId, userId }) {
     const assistantMessage = await tx.message.create({
       data: {
         chatId: chatId,
@@ -168,7 +169,20 @@ class PromptOrchestrator {
       data: { status: 'COMPLETED' },
     });
 
-    console.log("✅ Finalized messages in DB for userMessage ID:", assistantMessage.id);
+    // Convert BigInts to strings for serialization
+    const serializableMessage = {
+        ...assistantMessage,
+        id: assistantMessage.id.toString(),
+        chatId: assistantMessage.chatId.toString(),
+    };
+
+    // Send the new message over WebSocket
+    webSocketManager.sendMessageToUser(userId.toString(), {
+      type: 'new_message',
+      payload: serializableMessage,
+    });
+
+    console.log("✅ Finalized and sent message via WebSocket for userMessage ID:", assistantMessage.id);
     return new Response(
       assistantMessage.content,
       assistantMessage.audioUrl,
@@ -194,13 +208,28 @@ class PromptOrchestrator {
       });
       if (chat && chat.userId === userId) return chat;
     }
-    return tx.chat.create({
+    // If we are creating a new chat, send a websocket message
+    const newChat = await tx.chat.create({
       data: {
         userId: userId,
         title: question.substring(0, 40),
         summary: 'This chat is about: ' + question.substring(0, 100),
       },
     });
+
+    // Convert BigInts to strings for serialization
+    const serializableChat = {
+        ...newChat,
+        id: newChat.id.toString(),
+        userId: newChat.userId.toString(),
+    };
+
+    webSocketManager.sendMessageToUser(userId.toString(), {
+      type: 'new_chat',
+      payload: serializableChat,
+    });
+
+    return newChat;
   }
 
   async _logFailure(error, userMessageId) {

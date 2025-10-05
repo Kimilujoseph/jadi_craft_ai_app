@@ -16,7 +16,7 @@ const App = async (app) => {
    app.use(express.static('public'));
 
    // Define API routes
-   app.use('/api/v2/ask', askRouter);
+   app.use('/api/v1/ask', askRouter);
    app.use('/api/v1/auth', authRouter);
    app.use('/api/v1/chats', chatRouter);
 

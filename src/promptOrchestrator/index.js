@@ -95,7 +95,7 @@ class PromptOrchestrator {
 
   async _runOrchestration(userMessage, wantsAudio) {
     const question = userMessage.question || userMessage.content; // support both
-    if (question) {
+    if (!question) {
 
       return { text: "Sorry, I didn’t understand your request.", fallbackUsed: true, audioUrl: null };
     }

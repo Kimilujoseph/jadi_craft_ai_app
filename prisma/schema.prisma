@@ -8,52 +8,56 @@ datasource db {
 }
 
 model USERS {
-  user_id    BigInt      @id @default(autoincrement())
+  user_id    BigInt    @id @default(autoincrement())
   name       String?
-  email      String      @unique
+  email      String    @unique
   password   String
-  locale     String      @default("en") @db.VarChar(45)
-  created_at DateTime    @default(now()) @db.DateTime(0)
-  updated_at DateTime?   @default(now()) @db.DateTime(0)
-  
+  locale     String    @default("en") @db.VarChar(45)
+  created_at DateTime  @default(now()) @db.DateTime(0)
+  updated_at DateTime? @default(now()) @db.DateTime(0)
+
+  // ADMIN FLAG (added)
+  is_admin Boolean @default(false)
+
   // Field for user subscription tier
-  plan       Plan        @default(FREE)
-  
+  plan Plan @default(FREE)
+
   // Relations
-  chats      Chat[]
-  usage      UsageTracker[]
+  chats  Chat[]
+  usage  UsageTracker[]
+  events Event[] // relation: user-created events
 }
 
 model Chat {
-  id         BigInt    @id @default(autoincrement())
-  title      String?
-  userId     BigInt
-  user       USERS     @relation(fields: [userId], references: [user_id], onDelete: Cascade)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  summary    String?   @db.Text
-  messages   Message[]
+  id        BigInt    @id @default(autoincrement())
+  title     String?
+  userId    BigInt
+  user      USERS     @relation(fields: [userId], references: [user_id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  summary   String?   @db.Text
+  messages  Message[]
 
   @@index([userId])
 }
 
 model Message {
-  id        BigInt   @id @default(autoincrement())
-  chatId    BigInt
-  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  role      Role
-  content   String   @db.Text
-  precis    String?  @db.Text
+  id      BigInt  @id @default(autoincrement())
+  chatId  BigInt
+  chat    Chat    @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  role    Role
+  content String  @db.Text
+  precis  String? @db.Text
 
   // Monitoring & Reliability Fields
-  idempotencyKey String?  @unique
-  refinedPrompt  String?  @db.Text
-  audioUrl     String?
-  fallbackUsed Boolean? @default(false)
-  status    MessageStatus @default(COMPLETED)
-  
+  idempotencyKey String?       @unique
+  refinedPrompt  String?       @db.Text
+  audioUrl       String?
+  fallbackUsed   Boolean?      @default(false)
+  status         MessageStatus @default(COMPLETED)
+
   // Relation to failure logs
-  failures  FailureLog[]
+  failures FailureLog[]
 
   createdAt DateTime @default(now())
 
@@ -62,13 +66,13 @@ model Message {
 
 // NEW: For detailed failure analysis
 model FailureLog {
-  id          BigInt      @id @default(autoincrement())
-  messageId   BigInt
-  message     Message     @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  failureType FailureType // Categorizes the failure (e.g., LLM, TTS)
-  errorCode   String?     // e.g., '500', 'TIMEOUT'
-  errorMessage String     @db.Text
-  createdAt   DateTime    @default(now())
+  id           BigInt      @id @default(autoincrement())
+  messageId    BigInt
+  message      Message     @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  failureType  FailureType // Categorizes the failure (e.g., LLM, TTS)
+  errorCode    String? // e.g., '500', 'TIMEOUT'
+  errorMessage String      @db.Text
+  createdAt    DateTime    @default(now())
 
   @@index([messageId])
 }
@@ -83,6 +87,29 @@ model UsageTracker {
   cycleStartDate DateTime  @default(now())
 
   @@unique([userId, usageType]) // Ensures one tracker per user per feature type
+}
+
+// NEW: For user-created events
+model Event {
+  id               BigInt   @id @default(autoincrement())
+  title            String?
+  image            String? // stored file path or URL
+  shortDescription String   @db.Text
+  time             DateTime
+  venue            String
+  link             String? // optional external registration link
+  userId           BigInt? // optional creator (event planner)
+  user             USERS?   @relation(fields: [userId], references: [user_id], onDelete: SetNull)
+
+  // PUBLISHED FLAG (added) — events created as unpublished by default
+  published Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([time])
+  @@index([published])
 }
 
 // --- ENUMS for structured data ---

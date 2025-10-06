@@ -32,7 +32,7 @@ const rateLimiter = (usageType) => {
       const user_id = found_user.user_id
 
 
-      const user = await prisma.uSERS.findUnique({ where: { user_id: user_id } });
+      const user = await prisma.User.findUnique({ where: { user_id: user_id } });
       console.log("user@#@#@", user)
       if (!user) {
         throw new AuthenticationError('Authentication is required to accces this feature')

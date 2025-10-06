@@ -29,8 +29,8 @@ const startServer = async () => {
                         const decoded = jwt.verify(data.token, process.env.JWT_SECRET);
 
                         // Check if user exists in the database
-                        const user = await prisma.uSERS.findUnique({
-                            where: { user_id: decoded.id }, // CORRECTED: Use decoded.id
+                        const user = await prisma.User.findUnique({
+                            where: { user_id: decoded.id },
                         });
                         console.log("Authenticated user:", user);
 

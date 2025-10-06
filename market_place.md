@@ -6,7 +6,7 @@
 
   High-Level Concept
 
-  We'll call this feature "Promoted Results". It will allow registered and paying businesses to have their websites suggested to users
+  We'll call this feature "Promoted Results". It will allow registered and paying businesses to have their websites suggested to User
   when their prompts align with the business's category.
 
   Key Components & Modules
@@ -114,10 +114,10 @@
    3. Modify Core Logic:
        * Update src/promptOrchestrator/index.js to include the logic for querying MarketplaceListing after categorization.
 
-   4. Frontend: This would require a new set of pages, likely in a separate frontend application, for business users to manage their
+   4. Frontend: This would require a new set of pages, likely in a separate frontend application, for business User to manage their
       accounts and listings.
 
-  This is a substantial but very powerful feature. It creates a direct revenue stream while also enhancing the value for users by
+  This is a substantial but very powerful feature. It creates a direct revenue stream while also enhancing the value for User by
   connecting them with relevant businesses.
 
   What do you think? We could start by implementing the database schema changes first.

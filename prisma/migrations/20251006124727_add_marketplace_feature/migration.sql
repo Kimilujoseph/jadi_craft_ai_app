@@ -1,7 +1,7 @@
 /*
   Warnings:
 
-  - You are about to drop the `USERS` table. If the table is not empty, all the data it contains will be lost.
+  - You are about to drop the `User` table. If the table is not empty, all the data it contains will be lost.
 
 */
 -- DropForeignKey
@@ -11,7 +11,7 @@ ALTER TABLE `Chat` DROP FOREIGN KEY `Chat_userId_fkey`;
 ALTER TABLE `UsageTracker` DROP FOREIGN KEY `UsageTracker_userId_fkey`;
 
 -- DropTable
-DROP TABLE `USERS`;
+DROP TABLE `User`;
 
 -- CreateTable
 CREATE TABLE `User` (

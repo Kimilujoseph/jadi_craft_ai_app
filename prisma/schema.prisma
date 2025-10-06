@@ -7,7 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model USERS {
+model User {
   user_id    BigInt      @id @default(autoincrement())
   name       String?
   email      String      @unique
@@ -29,7 +29,7 @@ model Chat {
   id         BigInt    @id @default(autoincrement())
   title      String?
   userId     BigInt
-  user       USERS     @relation(fields: [userId], references: [user_id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [user_id], onDelete: Cascade)
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   summary    String?   @db.Text
@@ -74,7 +74,7 @@ model FailureLog {
 model UsageTracker {
   id             BigInt    @id @default(autoincrement())
   userId         BigInt
-  user           USERS     @relation(fields: [userId], references: [user_id], onDelete: Cascade)
+  user           User     @relation(fields: [userId], references: [user_id], onDelete: Cascade)
   usageType      UsageType
   count          Int       @default(0)
   cycleStartDate DateTime  @default(now())
@@ -95,7 +95,7 @@ model MarketplaceListing {
   expiresAt   DateTime?
 
   userId BigInt
-  user   USERS  @relation(fields: [userId], references: [user_id], onDelete: Cascade)
+  user   User  @relation(fields: [userId], references: [user_id], onDelete: Cascade)
 
   @@index([userId])
 }

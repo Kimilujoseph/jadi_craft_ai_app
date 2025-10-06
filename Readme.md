@@ -1,10 +1,10 @@
 # Jadi Craft Cultural Learning App
 
-This project is the backend service for the Jadi Craft Cultural Learning App, a web-based application designed to provide users with structured, meaningful cultural knowledge through an interactive AI-powered chat interface.
+This project is the backend service for the Jadi Craft Cultural Learning App, a web-based application designed to provide User with structured, meaningful cultural knowledge through an interactive AI-powered chat interface.
 
 ## Overview
 
-The application allows users to ask questions about various cultural domains (e.g., traditions, history, practices) and receive formatted text responses. It includes an optional Text-to-Speech (TTS) feature for audio narration, enhancing accessibility. The backend is built with Node.js and Express, and it leverages Prisma as an ORM for database interactions.
+The application allows User to ask questions about various cultural domains (e.g., traditions, history, practices) and receive formatted text responses. It includes an optional Text-to-Speech (TTS) feature for audio narration, enhancing accessibility. The backend is built with Node.js and Express, and it leverages Prisma as an ORM for database interactions.
 
 ## Features
 

@@ -30,7 +30,7 @@ CREATE TABLE `Chat` (
   `updatedAt` datetime(3) NOT NULL,
   PRIMARY KEY (`id`),
   KEY `Chat_userId_idx` (`userId`),
-  CONSTRAINT `Chat_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `USERS` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE
+  CONSTRAINT `Chat_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=31 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -110,13 +110,13 @@ INSERT INTO `Message` VALUES (1,1,'user','tell me more about the kikuyu communit
 UNLOCK TABLES;
 
 --
--- Table structure for table `USERS`
+-- Table structure for table `User`
 --
 
-DROP TABLE IF EXISTS `USERS`;
+DROP TABLE IF EXISTS `User`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `USERS` (
+CREATE TABLE `User` (
   `user_id` bigint NOT NULL AUTO_INCREMENT,
   `locale` varchar(45) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'en',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -126,18 +126,18 @@ CREATE TABLE `USERS` (
   `password` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `plan` enum('FREE','PAID') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'FREE',
   PRIMARY KEY (`user_id`),
-  UNIQUE KEY `USERS_email_key` (`email`)
+  UNIQUE KEY `User_email_key` (`email`)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `USERS`
+-- Dumping data for table `User`
 --
 
-LOCK TABLES `USERS` WRITE;
-/*!40000 ALTER TABLE `USERS` DISABLE KEYS */;
-INSERT INTO `USERS` VALUES (1,'en','2025-09-29 09:41:17','2025-09-29 09:41:17','timothy@gmail.com',NULL,'$2b$10$C8XXjot80fdPIqQWwoG8sunfCXSPm6UzneHiAXyODcJu0m0bu9zqC','FREE');
-/*!40000 ALTER TABLE `USERS` ENABLE KEYS */;
+LOCK TABLES `User` WRITE;
+/*!40000 ALTER TABLE `User` DISABLE KEYS */;
+INSERT INTO `User` VALUES (1,'en','2025-09-29 09:41:17','2025-09-29 09:41:17','timothy@gmail.com',NULL,'$2b$10$C8XXjot80fdPIqQWwoG8sunfCXSPm6UzneHiAXyODcJu0m0bu9zqC','FREE');
+/*!40000 ALTER TABLE `User` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -155,7 +155,7 @@ CREATE TABLE `UsageTracker` (
   `cycleStartDate` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   UNIQUE KEY `UsageTracker_userId_usageType_key` (`userId`,`usageType`),
-  CONSTRAINT `UsageTracker_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `USERS` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE
+  CONSTRAINT `UsageTracker_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

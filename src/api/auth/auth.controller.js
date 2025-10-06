@@ -9,12 +9,13 @@ const prisma = new PrismaClient();
 
 export const signup = async (req, res, next) => {
     try {
-        const { name, email, password } = req.body;
+        const { name, email, password, role } = req.body;
         const hashedPassword = await hashPassword(password);
-        const user = await prisma.uSERS.create({
+        const user = await prisma.user.create({
             data: {
                 name,
                 email,
+                role,
                 password: hashedPassword,
             },
         });
@@ -32,7 +33,7 @@ export const signup = async (req, res, next) => {
 export const signin = async (req, res, next) => {
     try {
         const { email, password } = req.body;
-        const user = await prisma.uSERS.findUnique({ where: { email } });
+        const user = await prisma.user.findUnique({ where: { email } });
         if (!user) {
             throw new NotFoundError('email not found');
         }

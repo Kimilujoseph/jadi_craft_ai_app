@@ -9,7 +9,7 @@ import LLMError from '../utils/errors/LLMError.js';
 import TTSError from '../utils/errors/TTSError.js';
 import webSocketManager from '../utils/WebSocketManager.js';
 
-const SUMMARY_INTERVAL = 10; // Every 10 messages
+const SUMMARY_INTERVAL = 5; // Every 10 messages
 
 class PromptOrchestrator {
   async handleQuestion({ question, wantsAudio, userId, idempotencyKey, chatId = null }) {
@@ -114,17 +114,31 @@ class PromptOrchestrator {
         id: { not: userMessage.id },
       },
       orderBy: { createdAt: 'asc' },
-      take: 20, // Limit to the last 20 messages for now
+      take: SUMMARY_INTERVAL, // Limit to a small, recent window
     });
 
-    // 2. Build context string from history
     const historyText = history.map(msg => {
       if (msg.role === 'assistant') {
         return `assistant: ${msg.precis || msg.content}`;
       }
       return `user: ${msg.content}`;
     }).join('\n');
+
     const category = await categorizer.categorize(question);
+
+    // --- Marketplace Integration ---
+    const promotedListings = await this._findPromotedListings("art");
+    console.log("promotedListing", promotedListings)
+    let sponsoredLinksText = '';
+    if (promotedListings && promotedListings.length > 0) {
+      sponsoredLinksText = `
+        SPONSORED CONTENT:
+        The user\'s query is related to \'${category}\'. If it makes sense, you can include the following sponsored links in your answer. You MUST clearly label them as [PROMOTED].
+        ${promotedListings.map(l => `- ${l.title}: ${l.url}`).join('\n')}
+      `;
+    }
+    // ---------------------------
+    console.log(`🛠️ Category identified@: ${sponsoredLinksText}`);
     const refinedPromptForCurrentQuestion = templateEngine.buildPrompt(category, question);
 
     const finalPrompt = `
@@ -132,6 +146,8 @@ class PromptOrchestrator {
 
       Recent History:
       ${historyText}
+
+      ${sponsoredLinksText}
 
       New Question:
       ${refinedPromptForCurrentQuestion}
@@ -144,11 +160,29 @@ class PromptOrchestrator {
       data: { refinedPrompt: finalPrompt },
     });
 
-    // 5. Generate text (which now includes a precis)
     const { text, precis, fallbackUsed } = await llmProvider.generateText(finalPrompt);
     const audioUrl = wantsAudio ? await this._synthesizeAudioGracefully(text, userMessage.id) : null;
 
     return { text, precis, fallbackUsed, audioUrl };
+  }
+
+  async _findPromotedListings(category) {
+    if (!category || category === 'other') {
+      return [];
+    }
+    try {
+      // Using raw SQL with JSON_CONTAINS and an explicit CAST for max reliability.
+      const searchString = JSON.stringify(category);
+
+      const listings = await prisma.$queryRaw(
+        Prisma.sql`SELECT * FROM MarketplaceListing WHERE status = 'ACTIVE' AND JSON_CONTAINS(categories, CAST(${searchString} AS JSON)) LIMIT 3`
+      );
+
+      return listings;
+    } catch (error) {
+      console.error('Error fetching promoted listings:', error);
+      return []; // Fail silently and don't block the user response
+    }
   }
 
   async _finalWrite(tx, { userMessage, text, precis, fallbackUsed, audioUrl, chatId, userId }) {
@@ -171,9 +205,9 @@ class PromptOrchestrator {
 
     // Convert BigInts to strings for serialization
     const serializableMessage = {
-        ...assistantMessage,
-        id: assistantMessage.id.toString(),
-        chatId: assistantMessage.chatId.toString(),
+      ...assistantMessage,
+      id: assistantMessage.id.toString(),
+      chatId: assistantMessage.chatId.toString(),
     };
 
     // Send the new message over WebSocket
@@ -219,9 +253,9 @@ class PromptOrchestrator {
 
     // Convert BigInts to strings for serialization
     const serializableChat = {
-        ...newChat,
-        id: newChat.id.toString(),
-        userId: newChat.userId.toString(),
+      ...newChat,
+      id: newChat.id.toString(),
+      userId: newChat.userId.toString(),
     };
 
     webSocketManager.sendMessageToUser(userId.toString(), {

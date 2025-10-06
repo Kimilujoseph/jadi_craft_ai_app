@@ -9,7 +9,7 @@ import LLMError from '../utils/errors/LLMError.js';
 import TTSError from '../utils/errors/TTSError.js';
 import webSocketManager from '../utils/WebSocketManager.js';
 
-const SUMMARY_INTERVAL = 10; // Every 10 messages
+const SUMMARY_INTERVAL = 5; // Every 10 messages
 
 class PromptOrchestrator {
   async handleQuestion({ question, wantsAudio, userId, idempotencyKey, chatId = null }) {
@@ -127,7 +127,8 @@ class PromptOrchestrator {
     const category = await categorizer.categorize(question);
 
     // --- Marketplace Integration ---
-    const promotedListings = await this._findPromotedListings(category);
+    const promotedListings = await this._findPromotedListings("art");
+    console.log("promotedListing", promotedListings)
     let sponsoredLinksText = '';
     if (promotedListings && promotedListings.length > 0) {
       sponsoredLinksText = `
@@ -137,7 +138,7 @@ class PromptOrchestrator {
       `;
     }
     // ---------------------------
-
+    console.log(`🛠️ Category identified@: ${sponsoredLinksText}`);
     const refinedPromptForCurrentQuestion = templateEngine.buildPrompt(category, question);
 
     const finalPrompt = `
@@ -170,16 +171,13 @@ class PromptOrchestrator {
       return [];
     }
     try {
-      const listings = await prisma.marketplaceListing.findMany({
-        where: {
-          status: 'ACTIVE',
-          categories: {
+      // Using raw SQL with JSON_CONTAINS and an explicit CAST for max reliability.
+      const searchString = JSON.stringify(category);
 
-            contains: `"${category}"`
-          }
-        },
-        take: 3, // Limit to 3 promoted results
-      });
+      const listings = await prisma.$queryRaw(
+        Prisma.sql`SELECT * FROM MarketplaceListing WHERE status = 'ACTIVE' AND JSON_CONTAINS(categories, CAST(${searchString} AS JSON)) LIMIT 3`
+      );
+
       return listings;
     } catch (error) {
       console.error('Error fetching promoted listings:', error);

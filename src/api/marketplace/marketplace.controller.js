@@ -16,15 +16,15 @@ export const createListing = async (req, res, next) => {
         url,
         title,
         description,
-        categories, // Stored as JSON
-        keywords: keywords || [], // Stored as JSON, default to empty array
+        categories,
+        keywords: keywords || [],
         userId,
-        status: 'ACTIVE', // TODO: Revert to PENDING once payment flow is live
-        // expiresAt will be handled by the payment/subscription background job later
+        status: 'ACTIVE',
       },
     });
 
-    res.status(201).json(newListing);
+
+    res.status(201).json({ "message": "successfully created a listing" });
   } catch (error) {
     next(error);
   }
@@ -42,8 +42,21 @@ export const getMyListings = async (req, res, next) => {
         createdAt: 'desc',
       },
     });
-
-    res.status(200).json(listings);
+    let newList = listings.map(listing => {
+      return {
+        id: listing.id,
+        url: listing.url,
+        title: listing.title,
+        description: listing.description,
+        categories: listing.categories,
+        keywords: listing.keywords,
+        status: listing.status,
+        userId: listing.userId.toString(),
+        createdAt: listing.createdAt,
+        updatedAt: listing.updatedAt
+      }
+    })
+    res.status(200).json(newList);
   } catch (error) {
     next(error);
   }
@@ -75,7 +88,7 @@ export const updateListing = async (req, res, next) => {
       data: updateData,
     });
 
-    res.status(200).json(updatedListing);
+    res.status(200).json({ "message": "successfully updated the listing" });
   } catch (error) {
     next(error);
   }

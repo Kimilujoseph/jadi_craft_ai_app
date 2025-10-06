@@ -23,13 +23,13 @@ const startServer = async () => {
         ws.on('message', async (message) => {
             try {
                 const data = JSON.parse(message);
-
+                console.log("Received message:", data);
                 if (data.type === 'auth' && data.token) {
                     try {
                         const decoded = jwt.verify(data.token, process.env.JWT_SECRET);
-
+                        console.log("Decoded JWT:", decoded);
                         // Check if user exists in the database
-                        const user = await prisma.User.findUnique({
+                        const user = await prisma.user.findUnique({
                             where: { user_id: decoded.id },
                         });
                         console.log("Authenticated user:", user);
@@ -42,6 +42,7 @@ const startServer = async () => {
                             throw new Error('User not found.');
                         }
                     } catch (error) {
+                        console.log("Authentication error:", error);
                         ws.send(JSON.stringify({ type: 'auth_error', message: 'Invalid or expired token.' }));
                         ws.close();
                     }

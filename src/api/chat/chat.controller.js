@@ -1,4 +1,3 @@
-
 import prisma from '../../database/client.js';
 import NotFoundError from '../../utils/errors/NotFoundError.js';
 
@@ -13,13 +12,25 @@ export const getChats = async (req, res, next) => {
         const userId = req.user.user_id;
         const chats = await prisma.chat.findMany({
             where: {
-                userId: userId,
+                userId: BigInt(userId),
             },
             orderBy: {
                 updatedAt: 'desc',
             },
         });
-        res.status(200).json(chats);
+        
+        console.log(chats);
+        
+        // Convert BigInt values to strings before sending the response
+        const serializedChats = chats.map(chat => ({
+            id: chat.id.toString(),
+            title: chat.title,
+            userId: chat.userId.toString(),
+            createdAt: chat.createdAt,
+            updatedAt: chat.updatedAt
+        }));
+        
+        res.status(200).json(serializedChats);
     } catch (error) {
         next(error);
     }
@@ -47,7 +58,6 @@ export const getChatMessages = async (req, res, next) => {
         }
 
         if (chat.userId !== userId) {
-
             throw new NotFoundError('Chat not found.');
         }
 
@@ -60,7 +70,17 @@ export const getChatMessages = async (req, res, next) => {
             },
         });
 
-        res.status(200).json(messages);
+        // Convert BigInt values to strings before sending the response
+        const serializedMessages = messages.map(message => ({
+            id: message.id.toString(),
+            chatId: message.chatId.toString(),
+            role: message.role,
+            content: message.content,
+            audioUrl: message.audioUrl || null,
+            createdAt: message.createdAt
+        }));
+
+        res.status(200).json(serializedMessages);
     } catch (error) {
         if (error instanceof NotFoundError) {
             return next(error);

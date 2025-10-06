@@ -114,7 +114,7 @@ class PromptOrchestrator {
         id: { not: userMessage.id },
       },
       orderBy: { createdAt: 'asc' },
-      take: 20, // Limit to the last 20 messages for now
+      take: SUMMARY_INTERVAL, // Limit to a small, recent window
     });
 
     const historyText = history.map(msg => {

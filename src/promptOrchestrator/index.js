@@ -28,10 +28,10 @@ class PromptOrchestrator {
       }));
       console.log(`Processing question for user ${userId} in chat ${chat.id}`);
 
-      const { text, precis, fallbackUsed, audioUrl } = await this._runOrchestration(userMessage, chat, wantsAudio);
+      const { text, precis, fallbackUsed, audioUrl, promotedListings } = await this._runOrchestration(userMessage, chat, wantsAudio);
 
       const finalResponse = await prisma.$transaction(async (tx) => {
-        return await this._finalWrite(tx, { userMessage, text, precis, fallbackUsed, audioUrl, chatId: chat.id, userId });
+        return await this._finalWrite(tx, { userMessage, text, precis, fallbackUsed, audioUrl, chatId: chat.id, userId, promotedListings });
       });
 
       // --- Non-blocking call to update summary ---
@@ -39,7 +39,6 @@ class PromptOrchestrator {
         console.error(`Background summary update failed for chat ${chat.id}:`, err.message);
       });
       // ----------------------------------------
-
       finalResponse.chatId = chat.id.toString();
       return finalResponse;
 
@@ -64,7 +63,7 @@ class PromptOrchestrator {
     if (userMessage) {
       if (userMessage.status === 'PROCESSING') {
         //so we think of implementing a websocket to push the result once ready
-        return new Response(null, null, null, "Your previous request is still being processed.", userMessage.chatId);
+        return new Response(null, null, null, "Your previous request is still being processed.", userMessage.chatId.toString(), []);
       }
 
       const assistantMessage = await prisma.message.findFirst({
@@ -77,12 +76,15 @@ class PromptOrchestrator {
       });
 
       if (assistantMessage) {
+        // When returning an existing response, we don't have structured link data.
+        // A future improvement could be to parse the text to find them.
         return new Response(
           assistantMessage.content,
           assistantMessage.audioUrl,
           assistantMessage.fallbackUsed,
           null,
-          assistantMessage.chatId.toString()
+          assistantMessage.chatId.toString(),
+          [] // Return empty array for promoted links
         );
       }
     }
@@ -90,6 +92,7 @@ class PromptOrchestrator {
   }
 
   async _initialWrite(tx, { question, userId, idempotencyKey, chatId }) {
+
     const chat = await this._findOrCreateChat(tx, userId, chatId, question);
     const userMessage = await tx.message.create({
       data: {
@@ -108,22 +111,26 @@ class PromptOrchestrator {
     if (!question) {
       return { text: "Sorry, I didn’t understand your request.", precis: null, fallbackUsed: true, audioUrl: null };
     }
+    // console.log(`🛠️ Orchestrating prompt for message ID: ${chat.id}`);
+    // console.log(`Fetching history for chat ID: ${chat.id}, excluding current message ID: ${userMessage.id}`);
     const history = await prisma.message.findMany({
       where: {
         chatId: chat.id,
         id: { not: userMessage.id },
       },
-      orderBy: { createdAt: 'asc' },
-      take: SUMMARY_INTERVAL, // Limit to a small, recent window
+      orderBy: { createdAt: 'desc' }, // Fetch the most recent messages first
+      take: 5,
     });
+    console.log(`Found ${history.length} messages in history.`);
 
-    const historyText = history.map(msg => {
+    // Reverse the history to place it in chronological order for the prompt
+    const historyText = history.reverse().map(msg => {
       if (msg.role === 'assistant') {
         return `assistant: ${msg.precis || msg.content}`;
       }
       return `user: ${msg.content}`;
     }).join('\n');
-
+    console.log("🛠️ Recent History:", historyText);
     const category = await categorizer.categorize(question);
 
     // --- Marketplace Integration ---
@@ -153,7 +160,7 @@ class PromptOrchestrator {
       ${refinedPromptForCurrentQuestion}
     `;
 
-    console.log("🛠️ Final Prompt with History:", finalPrompt);
+    //console.log("🛠️ Final Prompt with History:", finalPrompt);
 
     await prisma.message.update({
       where: { id: userMessage.id },
@@ -163,7 +170,7 @@ class PromptOrchestrator {
     const { text, precis, fallbackUsed } = await llmProvider.generateText(finalPrompt);
     const audioUrl = wantsAudio ? await this._synthesizeAudioGracefully(text, userMessage.id) : null;
 
-    return { text, precis, fallbackUsed, audioUrl };
+    return { text, precis, fallbackUsed, audioUrl, promotedListings };
   }
 
   async _findPromotedListings(category) {
@@ -171,21 +178,22 @@ class PromptOrchestrator {
       return [];
     }
     try {
-      // Using raw SQL with JSON_CONTAINS and an explicit CAST for max reliability.
-      const searchString = JSON.stringify(category);
 
+      const searchString = JSON.stringify(category.toLowerCase());
+      console.log("searchString", searchString);
       const listings = await prisma.$queryRaw(
         Prisma.sql`SELECT * FROM MarketplaceListing WHERE status = 'ACTIVE' AND JSON_CONTAINS(categories, CAST(${searchString} AS JSON)) LIMIT 3`
       );
+      listings.forEach(listing => delete listing.userId);
 
       return listings;
     } catch (error) {
       console.error('Error fetching promoted listings:', error);
-      return []; // Fail silently and don't block the user response
+      return [];
     }
   }
 
-  async _finalWrite(tx, { userMessage, text, precis, fallbackUsed, audioUrl, chatId, userId }) {
+  async _finalWrite(tx, { userMessage, text, precis, fallbackUsed, audioUrl, chatId, userId, promotedListings }) {
     const assistantMessage = await tx.message.create({
       data: {
         chatId: chatId,
@@ -222,7 +230,8 @@ class PromptOrchestrator {
       assistantMessage.audioUrl,
       assistantMessage.fallbackUsed,
       null,
-      assistantMessage.chatId.toString()
+      assistantMessage.chatId.toString(),
+      promotedListings // Pass the listings to the response model
     );
   }
 

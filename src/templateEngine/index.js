@@ -1,25 +1,8 @@
-// /**
-//  * Builds a refined prompt for the LLM.
-//  */
-// class TemplateEngine {
-//   /**
-//    * @param {Category} category The category of the query.
-//    * @param {string} query The original user query.
-//    * @returns {string} The refined prompt.
-//    */
-//   buildPrompt(category, query) {
-//     // TODO: Implement more sophisticated prompt engineering.
-//     console.log(`Building prompt for category "${category}"`);
-//     return `In the context of ${category}, answer the following question: ${query}`;
-//   }
-// }
-
-// const templateEngine = new TemplateEngine();
-// export default templateEngine;
 import Category from '../models/Category.js';
 
 /**
- * Builds a refined prompt for the LLM based on the query's category.
+ * Builds a refined, persona-driven prompt for the LLM based on the query's category.
+ * The persona is a "wise, cultural storyteller and guide."
  */
 class TemplateEngine {
   /**
@@ -28,34 +11,74 @@ class TemplateEngine {
    * @returns {string} The refined prompt.
    */
   buildPrompt(category, query) {
-    console.log(`Building prompt for category "${category}"`);
+    console.log(`Building storytelling prompt for category: "${category}"`);
 
-    let promptTemplate = '';
+    // The core persona for the AI. It's a storyteller and guide.
+    const persona = `You are a wise and engaging cultural storyteller. Your voice is warm, knowledgeable, and slightly informal, making it perfect for audio. Your purpose is to bridge the gap between technology and tradition by telling compelling stories and providing practical, immersive guidance. Never be generic. Always end your response with a thoughtful, open-ended question to encourage a deeper conversation.`;
 
-    // Choose a prompt template based on the determined category
+    let specificInstruction = '';
+
     switch (category) {
       case Category.PEOPLE:
-        promptTemplate = `Provide a detailed and culturally accurate answer about the people, historical figures, or social structures related to the following query. Please include their significance and role. The question is: "${query}"`;
+        specificInstruction = `Tell me the story of the person or people in this query. Don't just list facts. Describe their character, their impact, and a memorable anecdote about them. Make them come alive.`;
         break;
+
       case Category.PERIOD:
-        promptTemplate = `Describe the historical period or timeline relevant to the following query. Explain key events, historical context, and the cultural landscape of that era. The question is: "${query}"`;
+        specificInstruction = `Describe this historical period as if I were there. What did it look, sound, and feel like? Paint a vivid picture of the time, focusing on the daily lives of the people.`;
         break;
-      case Category.PRACTICE:
-        promptTemplate = `Explain the cultural practices, rituals, or daily life activities relevant to the following query. Detail the steps, tools, and significance of these practices. The question is: "${query}"`;
-        break;
+
       case Category.BELIEF:
-        promptTemplate = `Elaborate on the beliefs, mythology, or spiritual concepts related to the following query. Describe their origins, meanings, and influence on the culture. The question is: "${query}"`;
+        specificInstruction = `Explain this belief or myth like a village elder sharing wisdom by the fireside. Use allegory and metaphor to explain its meaning and its role in the community's life.`;
         break;
+
       case Category.MODERN:
-        promptTemplate = `Discuss the modern-day context and evolution of the cultural topic in the following query. How has it changed over time, and what is its relevance today? The question is: "${query}"`;
+        specificInstruction = `Discuss the modern-day context of this topic as the next chapter in an ongoing story. How is this tradition adapting, evolving, and finding new life today? Share a story of resilience or change.`;
         break;
+
+      case Category.FOOD:
+        specificInstruction = `You are a cultural chef and storyteller. Describe the significance of this dish and what it tastes like. Then, provide a simple, step-by-step recipe that someone could follow at home. Conclude by asking a question about their cooking experience or the ingredients.`;
+        break;
+
+      case Category.ARTIFACTS:
+        specificInstruction = `Describe this artifact not as an object, but as something with a life of its own. Tell the story of how it's made, who makes it, what it's used for, and the journey it takes.`;
+        break;
+
+      case Category.LANGUAGE:
+        specificInstruction = `You are a friendly language tutor. Teach a few key phrases related to the query. For each phrase, explain its literal meaning, its cultural context, and a situation where it would be used. Speak clearly and simply.`;
+        break;
+
+      case Category.CLOTHING:
+        specificInstruction = `You are a cultural fashion guide. Describe this traditional attire with passion. Explain the meaning of the colors, the fabrics, and the accessories. Provide practical guidance on how it's worn and for what occasions.`;
+        break;
+
+      case Category.CUSTOMS:
+        specificInstruction = `Explain this custom or ritual by telling the story behind it. Why did it begin? What does it symbolize? Walk me through the experience step-by-step, focusing on the emotions and community spirit involved.`;
+        break;
+
+      // All shopping-related categories get a unified, helpful prompt.
+      case Category.SHOPPING:
+      case Category.GIFTS:
+      case Category.HANDMADE:
+      case Category.CRAFTS:
+      case Category.POTTERY:
+      case Category.ART:
+        specificInstruction = `You are a helpful marketplace guide. The user wants to find authentic crafts. Your response should be warm and encouraging. If there are sponsored links available, weave them naturally into your answer as helpful suggestions. If not, provide general, encouraging advice on what to look for when buying authentic goods.`;
+        break;
+
       default:
-        // A generic template for uncategorized or default queries
-        promptTemplate = `Provide a well-structured and culturally sensitive answer to the following question: "${query}"`;
+        specificInstruction = `Answer the user's query in a way that is engaging, culturally sensitive, and tells a story. Find the human element in the topic.`;
         break;
     }
 
-    return promptTemplate;
+    // Combine the persona, the specific instruction, and the user's query.
+    return `
+      ${persona}
+
+      Your specific task for this query:
+      ${specificInstruction}
+
+      The user's question is: "${query}"
+    `;
   }
 }
 

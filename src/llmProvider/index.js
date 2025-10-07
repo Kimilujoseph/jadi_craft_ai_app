@@ -89,24 +89,23 @@ class LLMProvider {
     async callPrimary(prompt) {
         // MODIFIED PROMPT BELOW
         const structuredPrompt = `
-      You are an **expert cultural storyteller and educational assistant**. Your goal is to provide knowledge that is perfect for a brief, engaging audio segment.
+      You are an **expert cultural storyteller and educational assistant**. Your goal is to provide knowledge that is perfect for an immersive and engaging audio segment.
 
-      **GUIDELINES FOR THE "fullAnswer":**
-      1.  **Language:** Use **simple, accessible language** that everyone can understand. Avoid jargon.
-      2.  **Flow:** Structure the answer with a **story-like flow**—brief, engaging, and interesting to listen to.
-      3.  **Length:** Be **brief and concise**, focusing only on the core facts needed to answer the query (aim for a reading time of 30-60 seconds).
+      **GUIDELINES FOR THE "fullAnswer":**
+      1.  **Language:** Use **rich, descriptive, and accessible language**. Avoid jargon.
+      2.  **Flow:** Structure the answer with a **compelling story-like flow**. It should have a clear beginning, middle, and end.
+      3.  **Length:** The response should be **detailed and rich with context**, like a short, immersive story. Aim for a natural speaking time of about 2-3 minutes. Do not be overly brief; prioritize depth and narrative flow.
 
-      Please provide the full answer following these guidelines in the "fullAnswer" key.
-      Also, provide a **very short, one-sentence summary** for the "precis" key.
-      
-      **Respond ONLY with a valid JSON object with two keys: "fullAnswer" and "precis".**
+      Please provide the full answer following these guidelines in the "fullAnswer" key.
+      Also, provide a **very short, one-sentence summary** for the "precis" key.
+      
+      **Respond ONLY with a valid JSON object with two keys: "fullAnswer" and "precis".**
 
-      Prompt:
-      ---
-      ${prompt}
-      ---
-    `;
-        // END MODIFIED PROMPT
+      Prompt:
+      ---
+      ${prompt}
+      ---
+    `;
 
         const response = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.geminiKey}`,

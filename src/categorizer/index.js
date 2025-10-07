@@ -135,7 +135,13 @@ class Categorizer {
       Category.ARTIFACTS,
       Category.LANGUAGE,
       Category.CLOTHING,
-      Category.CUSTOMS // Include general practices if query is too broad
+      Category.CUSTOMS, // Include general practices if query is too broad
+      Category.SHOPPING,
+      Category.GIFTS,
+      Category.HANDMADE,
+      Category.CRAFTS,
+      Category.POTTERY,
+      Category.ART
     ].join(", ");
 
     try {

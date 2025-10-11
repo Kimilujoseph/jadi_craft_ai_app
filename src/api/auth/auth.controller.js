@@ -47,7 +47,15 @@ export const signin = async (req, res, next) => {
             secure: process.env.NODE_ENV === 'production',
             path: '/',
             sameSite: 'strict'
-        }).status(200).json({ message: 'Signed in successfully' });
+        }).status(200).json({
+            message: 'Signed in successfully', user: {
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                plan: user.plan
+            },
+            token: token
+        });
     } catch (error) {
         console.log(error)
         if (error instanceof AuthenticationError || error instanceof NotFoundError) {

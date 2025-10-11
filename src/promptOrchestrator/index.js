@@ -214,10 +214,11 @@ class PromptOrchestrator {
     // Convert BigInts to strings for serialization
     const serializableMessage = {
       ...assistantMessage,
+      promotedListings,
       id: assistantMessage.id.toString(),
       chatId: assistantMessage.chatId.toString(),
     };
-
+    console.log(serializableMessage)
     // Send the new message over WebSocket
     webSocketManager.sendMessageToUser(userId.toString(), {
       type: 'new_message',

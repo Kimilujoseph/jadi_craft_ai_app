@@ -4,7 +4,7 @@
   "main": "src/index.js",
   "type": "module",
   "scripts": {
- "dev": "cross-env NODE_ENV=development nodemon src/index.js"
+    "dev": "cross-env NODE_ENV=development nodemon src/index.js"
   },
   "keywords": [],
   "author": {
@@ -32,6 +32,7 @@
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.1",
     "node-fetch": "^3.3.2",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "ws": "^8.18.3"
   }
 }

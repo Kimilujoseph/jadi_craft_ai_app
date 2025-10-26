@@ -7,7 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model USERS {
+model User {
   user_id    BigInt      @id @default(autoincrement())
   name       String?
   email      String      @unique
@@ -16,21 +16,24 @@ model USERS {
   created_at DateTime    @default(now()) @db.DateTime(0)
   updated_at DateTime?   @default(now()) @db.DateTime(0)
   
-  // Field for user subscription tier
   plan       Plan        @default(FREE)
-  
+  role       UserRole    @default(USER)
+
   // Relations
   chats      Chat[]
   usage      UsageTracker[]
+  listings   MarketplaceListing[]
+  events     Event[]
 }
 
 model Chat {
   id         BigInt    @id @default(autoincrement())
   title      String?
   userId     BigInt
-  user       USERS     @relation(fields: [userId], references: [user_id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [user_id], onDelete: Cascade)
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
+  summary    String?   @db.Text
   messages   Message[]
 
   @@index([userId])
@@ -42,15 +45,14 @@ model Message {
   chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
   role      Role
   content   String   @db.Text
+  precis    String?  @db.Text
 
-  // Monitoring & Reliability Fields
   idempotencyKey String?  @unique
   refinedPrompt  String?  @db.Text
   audioUrl     String?
   fallbackUsed Boolean? @default(false)
   status    MessageStatus @default(COMPLETED)
   
-  // Relation to failure logs
   failures  FailureLog[]
 
   createdAt DateTime @default(now())
@@ -58,30 +60,70 @@ model Message {
   @@index([chatId])
 }
 
-// NEW: For detailed failure analysis
+model Event {
+  id               BigInt   @id @default(autoincrement())
+  title            String?
+  image            String? // stored file path or URL
+  shortDescription String   @db.Text
+  time             DateTime
+  venue            String
+  link             String? // optional external registration link
+  userId           BigInt? // optional creator (event planner)
+  user             User?   @relation(fields: [userId], references: [user_id], onDelete: SetNull)
+
+  // PUBLISHED FLAG (added) — events created as unpublished by default
+  published Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([time])
+  @@index([published])
+}
+
+
 model FailureLog {
   id          BigInt      @id @default(autoincrement())
   messageId   BigInt
   message     Message     @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  failureType FailureType // Categorizes the failure (e.g., LLM, TTS)
-  errorCode   String?     // e.g., '500', 'TIMEOUT'
+  failureType FailureType
+  errorCode   String?
   errorMessage String     @db.Text
   createdAt   DateTime    @default(now())
 
   @@index([messageId])
 }
 
-// NEW: For tracking feature usage against limits
 model UsageTracker {
   id             BigInt    @id @default(autoincrement())
   userId         BigInt
-  user           USERS     @relation(fields: [userId], references: [user_id], onDelete: Cascade)
-  usageType      UsageType // The feature being tracked (e.g., AUDIO_GENERATION)
+  user           User     @relation(fields: [userId], references: [user_id], onDelete: Cascade)
+  usageType      UsageType
   count          Int       @default(0)
   cycleStartDate DateTime  @default(now())
 
-  @@unique([userId, usageType]) // Ensures one tracker per user per feature type
+  @@unique([userId, usageType])
 }
+
+model MarketplaceListing {
+  id          String   @id @default(cuid())
+  url         String
+  title       String
+  description String
+  categories  Json     @default("[]")
+  keywords    Json     @default("[]")
+  status      ListingStatus @default(PENDING)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  expiresAt   DateTime?
+
+  userId BigInt
+  user   User  @relation(fields: [userId], references: [user_id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
 
 // --- ENUMS for structured data ---
 
@@ -90,13 +132,24 @@ enum Role {
   assistant
 }
 
-// NEW: User subscription plans
 enum Plan {
   FREE
   PAID
 }
 
-// NEW: Categories of failures for analysis
+enum UserRole {
+  USER
+  ADMIN
+  VENDOR
+}
+
+enum ListingStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+  EXPIRED
+}
+
 enum FailureType {
   PROMPT_ORCHESTRATION
   CATEGORIZER
@@ -105,7 +158,6 @@ enum FailureType {
   TTS_SERVICE
 }
 
-// NEW: Types of features to track usage for
 enum UsageType {
   AUDIO_GENERATION
   CHAT_MESSAGES

@@ -8,7 +8,7 @@
 ALTER TABLE `Message` DROP COLUMN `errorMessage`;
 
 -- AlterTable
-ALTER TABLE `USERS` ADD COLUMN `plan` ENUM('FREE', 'PAID') NOT NULL DEFAULT 'FREE';
+ALTER TABLE `User` ADD COLUMN `plan` ENUM('FREE', 'PAID') NOT NULL DEFAULT 'FREE';
 
 -- CreateTable
 CREATE TABLE `FailureLog` (
@@ -39,4 +39,4 @@ CREATE TABLE `UsageTracker` (
 ALTER TABLE `FailureLog` ADD CONSTRAINT `FailureLog_messageId_fkey` FOREIGN KEY (`messageId`) REFERENCES `Message`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `UsageTracker` ADD CONSTRAINT `UsageTracker_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `USERS`(`user_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `UsageTracker` ADD CONSTRAINT `UsageTracker_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`user_id`) ON DELETE CASCADE ON UPDATE CASCADE;

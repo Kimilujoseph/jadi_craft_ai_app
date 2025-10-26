@@ -3,7 +3,7 @@ import path from "path";
 
 // --- Configuration, Timeout, and Error Handling Imports 
 import { ELEVENLABS_API_KEY, TTS_TIMEOUT, MAX_CHUNK_LENGTH } from "../utils/config.js";
-import withTimeout from "../utils/withTimeout.js"; 
+import withTimeout from "../utils/withTimeout.js";
 import httpStatusCodes from "../utils/httpStatusCodes.js";
 
 // Specialized error imports
@@ -22,9 +22,9 @@ setupAudioDirectory();
  * Main TTSService Class - The central orchestrator.
  */
 class TTSService {
-  
+
   async _actualSynthesize(text) {
-    
+
     try {
       let audioBufferOrBuffers;
 
@@ -44,14 +44,14 @@ class TTSService {
         }
         audioBufferOrBuffers = chunkBuffers;
       }
-      
+
       const audioPath = saveAudioFile(audioBufferOrBuffers);
       console.log(`Audio saved: ${audioPath}`);
       return audioPath;
 
     } catch (err) {
       console.error("Error in core synthesis flow:", err);
-      throw err; 
+      throw err;
     }
   }
 
@@ -62,7 +62,7 @@ class TTSService {
     }
 
     console.log(`Synthesizing audio: "${text.substring(0, 100)}${text.length > 100 ? '...' : ''}"`);
-    
+
     const synthesizeWithTimeout = withTimeout(this._actualSynthesize.bind(this), TTS_TIMEOUT);
 
     try {
@@ -70,12 +70,12 @@ class TTSService {
       return audioPath;
     } catch (error) {
       if (error instanceof ApiError) {
-        throw error; 
+        throw error;
       }
-      
+
       console.error("TTS Service failed or timed out unexpectedly:", error.message);
       // Throw the specialized TTSError for service-level failure/timeout
-      throw new TTSError("Text-to-Speech generation failed or timed out."); 
+      throw new TTSError("Text-to-Speech generation failed or timed out.");
     }
   }
 
@@ -87,3 +87,6 @@ class TTSService {
 const ttsService = new TTSService();
 ttsService.cleanupOldFiles();
 export default ttsService;
+
+
+

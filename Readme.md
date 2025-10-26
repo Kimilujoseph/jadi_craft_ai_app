@@ -1,10 +1,10 @@
 # Jadi Craft Cultural Learning App
 
-This project is the backend service for the Jadi Craft Cultural Learning App, a web-based application designed to provide users with structured, meaningful cultural knowledge through an interactive AI-powered chat interface.
+This project is the backend service for the Jadi Craft Cultural Learning App, a web-based application designed to provide User with structured, meaningful cultural knowledge through an interactive AI-powered chat interface.
 
 ## Overview
 
-The application allows users to ask questions about various cultural domains (e.g., traditions, history, practices) and receive formatted text responses. It includes an optional Text-to-Speech (TTS) feature for audio narration, enhancing accessibility. The backend is built with Node.js and Express, and it leverages Prisma as an ORM for database interactions.
+The application allows User to ask questions about various cultural domains (e.g., traditions, history, practices) and receive formatted text responses. It includes an optional Text-to-Speech (TTS) feature for audio narration, enhancing accessibility. The backend is built with Node.js and Express, and it leverages Prisma as an ORM for database interactions.
 
 ## Features
 
@@ -18,6 +18,55 @@ The application allows users to ask questions about various cultural domains (e.
   - **Timeouts:** Prevents requests from hanging due to slow AI model responses.
   - **Centralized Error Handling:** A standardized system for handling all application errors.
 - **Detailed Logging:** All requests, responses, and errors are logged to the database for analytics and debugging.
+
+## Marketplace Feature
+
+The application includes a marketplace where vendors can promote their websites for artifacts and cultural items. When a user's query matches a listing's category, the AI will naturally weave promoted links into its response, driving traffic to the vendor's site.
+
+### How to Become a Vendor
+
+To create marketplace listings, a user's `role` must be set to `VENDOR`. The `User` model in the database has a `role` enum with three possible values: `USER`, `ADMIN`, and `VENDOR`.
+
+For new sign-ups, you can modify the user's role directly in the database after they have created an account.
+
+### Creating a Marketplace Listing
+
+Once a user has the `VENDOR` role, they can create listings by sending a `POST` request to the following endpoint.
+
+- **Endpoint**: `POST /api/v1/marketplace/listings`
+- **Authentication**: Requires a valid JWT token for a `VENDOR` user.
+
+**Request Body:**
+
+The request body must be a JSON object with the following fields:
+
+| Field         | Type              | Required | Description                                             |
+|---------------|-------------------|----------|---------------------------------------------------------|
+| `url`         | `String`          | Yes      | The full URL of the website to promote.                 |
+| `title`       | `String`          | Yes      | A short, descriptive title for the listing.             |
+| `description` | `String`          | Yes      | A longer description of the website or products.        |
+| `categories`  | `Array<String>`   | Yes      | An array of relevant categories (e.g., "ART", "POTTERY"). |
+| `keywords`    | `Array<String>`   | No       | An optional array of keywords for more specific targeting. |
+
+**Example `curl` Request:**
+
+```bash
+curl -X POST http://localhost:3001/api/v1/marketplace/listings \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer YOUR_JWT_TOKEN" \
+-d '{
+  "url": "https://www.my-artifact-shop.com",
+  "title": "My Awesome Artifacts",
+  "description": "Authentic, handmade pottery and beadwork from local artisans.",
+  "categories": ["POTTERY", "HANDMADE", "ART"],
+  "keywords": ["beads", "vases", "sculptures"]
+}'
+```
+
+## Chat Conversation Logic
+
+When a user starts a new conversation, the content of their very first message is automatically used to create the title for that chat session. This helps identify and organize different conversations in the database.
+
 
 ## Architecture
 

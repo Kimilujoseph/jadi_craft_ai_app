@@ -22,15 +22,18 @@ const USAGE_CYCLE_DAYS = 30;
 const rateLimiter = (usageType) => {
   return async (req, res, next) => {
     try {
-      if (!req.user || !req.user.id) {
-
+      console.log(req.user)
+      if (!req.user) {
+        //next()
         throw new AuthenticationError('Authentication is required to access this feature.');
       }
 
-      const userId = req.user.id;
+      const found_user = req.user;
+      const user_id = found_user.user_id
 
 
-      const user = await prisma.uSERS.findUnique({ where: { user_id: userId } });
+      const user = await prisma.User.findUnique({ where: { user_id: user_id } });
+      console.log("user@#@#@", user)
       if (!user) {
         throw new AuthenticationError('Authentication is required to accces this feature')
       }
@@ -44,10 +47,17 @@ const rateLimiter = (usageType) => {
       }
 
       const now = new Date();
+
       const cycleStartDate = new Date(now);
       cycleStartDate.setDate(now.getDate() - USAGE_CYCLE_DAYS);
       const currentUsage = await prisma.usageTracker.findUnique({
-        where: { userId_usageType: { userId, usageType } },
+
+        where: {
+          userId_usageType: {
+            userId: BigInt(user_id),    // must match field name in model
+            usageType: usageType
+          }
+        }
       });
 
       if (currentUsage && currentUsage.cycleStartDate > cycleStartDate) {
@@ -62,9 +72,14 @@ const rateLimiter = (usageType) => {
         });
       } else {
         await prisma.usageTracker.upsert({
-          where: { userId_usageType: { userId, usageType } },
+          where: {
+            userId_usageType: {
+              userId: BigInt(user_id),
+              usageType
+            }
+          },
           create: {
-            userId,
+            userId: BigInt(user_id),
             usageType,
             count: 1,
             cycleStartDate: now,
@@ -74,9 +89,11 @@ const rateLimiter = (usageType) => {
             cycleStartDate: now,
           },
         });
+
       }
       return next();
     } catch (error) {
+      console.error('Rate limiter error:', error);
       return next(error);
     }
   };

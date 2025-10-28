@@ -1,5 +1,6 @@
 import prisma from '../../database/client.js';
 import AuthorizationError from '../../utils/errors/AuthorizationError.js';
+import { logClick } from './promotedlistings.js';
 
 export const createListing = async (req, res, next) => {
   try {
@@ -122,4 +123,21 @@ export const deleteListing = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-};
+}
+
+  export const handleMarketplaceClick = async (req, res, next) => {
+  const { listingId } = req.body;
+  const userId = req.user?.user_id; // Comes from authMiddleware
+
+  if (!listingId) {
+    return res.status(400).json({ error: 'listingId is required.' });
+  }
+
+  try {
+    // Call the new service function
+    await logClick(listingId, userId);
+    res.status(200).json({ success: true, message: 'Click logged.' });
+  } catch (error) {
+    next(error);
+  }
+}

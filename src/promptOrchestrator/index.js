@@ -8,6 +8,8 @@ import { Prisma } from '@prisma/client';
 import LLMError from '../utils/errors/LLMError.js';
 import TTSError from '../utils/errors/TTSError.js';
 import webSocketManager from '../utils/WebSocketManager.js';
+import { extractKeywords } from '../utils/keywordextractor.js';
+import { logImpression } from '../api/marketplace/promotedlistings.js';
 
 const SUMMARY_INTERVAL = 5; // Every 10 messages
 
@@ -133,6 +135,9 @@ class PromptOrchestrator {
     console.log("🛠️ Recent History:", historyText);
     const category = await categorizer.categorize(question);
 
+    //Marketplace Integration with new SEO engine
+    const keywords = extractKeywords(question);
+
     // --- Marketplace Integration ---
     const promotedListings = await this._findPromotedListings("art");
     console.log("promotedListing", promotedListings)
@@ -143,6 +148,13 @@ class PromptOrchestrator {
         The user\'s query is related to \'${category}\'. If it makes sense, you can include the following sponsored links in your answer. You MUST clearly label them as [PROMOTED].
         ${promotedListings.map(l => `- ${l.title}: ${l.url}`).join('\n')}
       `;
+
+      //Log Impression Analytics non-blockingly (fire-and-forget)
+     // We log it here because the link has been 'shown' by including it in the prompt.
+      promotedListings.forEach(link => {
+      logImpression(link.id, chat.userId, question)
+     .catch(err => console.error(`Error logging impression for ${link.id}:`, err.message));
+});
     }
     // ---------------------------
     console.log(`🛠️ Category identified@: ${sponsoredLinksText}`);
@@ -173,26 +185,7 @@ class PromptOrchestrator {
     return { text, precis, fallbackUsed, audioUrl, promotedListings };
   }
 
-  async _findPromotedListings(category) {
-    if (!category || category === 'other') {
-      return [];
-    }
-    try {
-
-      const searchString = JSON.stringify(category.toLowerCase());
-      console.log("searchString", searchString);
-      const listings = await prisma.$queryRaw(
-        Prisma.sql`SELECT * FROM MarketplaceListing WHERE status = 'ACTIVE' AND JSON_CONTAINS(categories, CAST(${searchString} AS JSON)) LIMIT 3`
-      );
-      listings.forEach(listing => delete listing.userId);
-
-      return listings;
-    } catch (error) {
-      console.error('Error fetching promoted listings:', error);
-      return [];
-    }
-  }
-
+  
   async _finalWrite(tx, { userMessage, text, precis, fallbackUsed, audioUrl, chatId, userId, promotedListings }) {
     const assistantMessage = await tx.message.create({
       data: {

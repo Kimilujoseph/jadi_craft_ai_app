@@ -24,5 +24,6 @@ router.patch('/listings/:id', authMiddleware, updateListingValidator, marketplac
 // @desc    Delete a listing for the authenticated user
 // @access  Private
 router.delete('/listings/:id', authMiddleware, marketplaceController.deleteListing);
-
+ 
+router.post('/click', authMiddleware, marketplaceController.handleMarketplaceClick);
 export default router;

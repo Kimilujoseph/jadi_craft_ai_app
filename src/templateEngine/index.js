@@ -8,9 +8,10 @@ class TemplateEngine {
   /**
    * @param {Category} category The category of the query.
    * @param {string} query The original user query.
+   *  @param {Array<Object>} [promotedLinks=[]] An array of high-scoring marketplace listings.
    * @returns {string} The refined prompt.
    */
-  buildPrompt(category, query) {
+  buildPrompt(category, query,promotedLinks = []) {
     console.log(`Building storytelling prompt for category: "${category}"`);
 
     // The core persona for the AI. It's a storyteller and guide.
@@ -70,6 +71,16 @@ class TemplateEngine {
         break;
     }
 
+    //  Logic to include promoted links in the prompt
+   let promotedLinksContext = '';
+    if (promotedLinks.length > 0) {
+    promotedLinksContext = '\n\n**CRITICAL INSTRUCTION:** The following links are highly relevant to the user\'s query and MUST be included in your answer if it feels natural and helpful. You MUST explicitly label them as **[PROMOTED]**. \n\n**PROMOTED LINKS:**\n';
+ 
+     for (const link of promotedLinks) {
+     promotedLinksContext += `* **[PROMOTED] ${link.title}**: ${link.url} (Description: ${link.description || 'N/A'})\n`;
+   }
+     promotedLinksContext += '\n';
+      }
     // Combine the persona, the specific instruction, and the user's query.
     return `
       ${persona}

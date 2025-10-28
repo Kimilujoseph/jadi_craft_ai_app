@@ -24,6 +24,11 @@ model User {
   usage      UsageTracker[]
   listings   MarketplaceListing[]
   events     Event[]
+
+  //Relations for SEO Analytics
+  impressions MarketplaceImpression[]
+  clicks      MarketplaceClick[]
+
 }
 
 model Chat {
@@ -121,7 +126,46 @@ model MarketplaceListing {
   userId BigInt
   user   User  @relation(fields: [userId], references: [user_id], onDelete: Cascade)
 
+  //Relations for SEO Analytics (Impressions and Clicks)
+  impressions MarketplaceImpression[] 
+  clicks      MarketplaceClick[] 
+
   @@index([userId])
+}
+
+// Tracks every time a user is SHOWN a promoted link (SEO IMPRESSION)
+model MarketplaceImpression {
+    id                 BigInt     @id @default(autoincrement())
+    // Relations to the Listing (String)
+    listingId          String
+    listing            MarketplaceListing @relation(fields: [listingId], references: [id])
+    
+    // Relations to the User (BigInt)
+    userId             BigInt?    // User who was shown the listing (nullable for guests)
+    user               User?      @relation(fields: [userId], references: [user_id]) 
+    
+    userQuery          String     // Logs the exact query (crucial for keyword analysis)
+    impressedAt        DateTime   @default(now())
+
+    @@index([listingId])
+    @@index([userId])
+}
+
+// Tracks every time a user INTERACTS with a promoted link (SEO CLICK)
+model MarketplaceClick {
+    id                 BigInt     @id @default(autoincrement())
+    // Relations to the Listing (String)
+    listingId          String
+    listing            MarketplaceListing @relation(fields: [listingId], references: [id])
+
+    // Relations to the User (BigInt)
+    userId             BigInt?    // User who clicked the listing (nullable for guests)
+    user               User?      @relation(fields: [userId], references: [user_id])
+    
+    clickedAt          DateTime   @default(now())
+
+    @@index([listingId])
+    @@index([userId])
 }
 
 

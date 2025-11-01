@@ -140,7 +140,7 @@ class PromptOrchestrator {
     if (promotedListings && promotedListings.length > 0) {
       sponsoredLinksText = `
         SPONSORED CONTENT:
-        The user\'s query is related to \'${category}\'. If it makes sense, you can include the following sponsored links in your answer. You MUST clearly label them as [PROMOTED].
+        The user\'s query is related to \'${category}\'. If it makes sense, you can include the following sponsored links in your answer.
         ${promotedListings.map(l => `- ${l.title}: ${l.url}`).join('\n')}
       `;
     }

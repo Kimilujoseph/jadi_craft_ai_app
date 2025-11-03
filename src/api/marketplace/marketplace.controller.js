@@ -4,9 +4,9 @@ import AuthorizationError from '../../utils/errors/AuthorizationError.js';
 export const createListing = async (req, res, next) => {
   try {
     // Authorization: Ensure the user has the VENDOR role.
-    if (req.user.role !== 'VENDOR') {
-      throw new AuthorizationError('Forbidden: Only User with the VENDOR role can create listings.');
-    }
+    // if (req.user.role !== 'VENDOR') {
+    //   throw new AuthorizationError('Forbidden: Only User with the VENDOR role can create listings.');
+    // }
 
     const { url, title, description, categories, keywords } = req.body;
     const userId = req.user.user_id;

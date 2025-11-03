@@ -30,6 +30,7 @@ class EventsController {
             const serialized = events.map(e => ({
                 id: e.id.toString(),
                 title: e.title || null,
+                // Image field now contains the Cloudinary URL
                 image: e.image || null,
                 shortDescription: e.shortDescription,
                 time: e.time,
@@ -71,6 +72,7 @@ class EventsController {
             const serialized = {
                 id: event.id.toString(),
                 title: event.title || null,
+                // Image field now contains the Cloudinary URL
                 image: event.image || null,
                 shortDescription: event.shortDescription,
                 time: event.time,
@@ -93,7 +95,10 @@ class EventsController {
     async createEvent(req, res, next) {
         try {
             const userId = req.user?.user_id;
-            const image = req.file ? (req.file.path || req.file.filename) : (req.body.image || null);
+            
+            // Image is now expected to be a Cloudinary URL set by the uploadToCloudinary middleware
+            // or explicitly passed in req.body by the client if no file was uploaded.
+            const image = req.body.image || null; 
 
             const {
                 title = null,
@@ -111,7 +116,7 @@ class EventsController {
 
             const data = {
                 title,
-                image,
+                image, // This is now the Cloudinary URL
                 shortDescription,
                 time: new Date(time),
                 venue,
@@ -159,14 +164,15 @@ class EventsController {
                 return res.status(403).json({ message: 'Forbidden' });
             }
 
-            // If file uploaded, prefer file path/filename
-            if (req.file) {
-                req.body.image = req.file.path || req.file.filename;
-            }
+            // The image URL is already set in req.body.image by uploadToCloudinary middleware
+            // if a new file was uploaded. If not, req.body.image may contain an explicit
+            // URL from the client or be undefined.
 
             const updateData = {};
             if (req.body.title !== undefined) updateData.title = req.body.title;
-            if (req.body.image !== undefined) updateData.image = req.body.image;
+            // Use req.body.image directly, which holds the Cloudinary URL if a file was uploaded
+            // or the value passed from the client if no file was sent.
+            if (req.body.image !== undefined) updateData.image = req.body.image; 
             if (req.body.shortDescription !== undefined) updateData.shortDescription = req.body.shortDescription;
             if (req.body.time !== undefined) updateData.time = new Date(req.body.time);
             if (req.body.venue !== undefined) updateData.venue = req.body.venue;

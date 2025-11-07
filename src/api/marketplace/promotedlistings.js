@@ -1,4 +1,3 @@
-
 import prisma from '../../database/client.js';
 
 /**
@@ -94,4 +93,101 @@ export const logClick = async (listingId, userId) => {
     console.error('Error logging marketplace click:', error);
     throw new Error('Could not log click.');
   }
+};
+
+/*
+  New: Return counts and basic listing info for a single listing within an optional date range.
+  listingId is expected to be the listing primary key (string).
+*/
+export const getListingAnalytics = async (listingId, { startDate = null, endDate = null } = {}) => {
+  const whereImpr = { listingId };
+  const whereClick = { listingId };
+
+  if (startDate || endDate) {
+    // changed: use impressedAt / clickedAt (match schema)
+    whereImpr.impressedAt = {};
+    whereClick.clickedAt = {};
+    if (startDate) {
+      whereImpr.impressedAt.gte = startDate;
+      whereClick.clickedAt.gte = startDate;
+    }
+    if (endDate) {
+      whereImpr.impressedAt.lte = endDate;
+      whereClick.clickedAt.lte = endDate;
+    }
+  }
+
+  const [impressions, clicks, listing] = await Promise.all([
+    prisma.marketplaceImpression.count({ where: whereImpr }),
+    prisma.marketplaceClick.count({ where: whereClick }),
+    prisma.marketplaceListing.findUnique({ where: { id: listingId } })
+  ]);
+
+  return {
+    listing: listing ? { id: listing.id, title: listing.title, url: listing.url, userId: listing.userId } : null,
+    impressions,
+    clicks,
+    period: { startDate: startDate || null, endDate: endDate || null }
+  };
+};
+
+/*
+  New: Vendor-level analytics. Returns totals and top listings (by impressions) for the given vendorId.
+  vendorId should match marketplaceListing.userId.
+*/
+export const getVendorAnalytics = async (vendorId, { startDate = null, endDate = null, limit = 10 } = {}) => {
+  // Fetch vendor's listings
+  const listings = await prisma.marketplaceListing.findMany({
+    where: { userId: vendorId },
+    select: { id: true, title: true, url: true },
+    take: 1000,
+  });
+
+  const results = await Promise.all(listings.map(async (l) => {
+    const whereImpr = { listingId: l.id };
+    const whereClick = { listingId: l.id };
+
+    if (startDate || endDate) {
+      // changed: use impressedAt / clickedAt (match schema)
+      whereImpr.impressedAt = {};
+      whereClick.clickedAt = {};
+      if (startDate) {
+        whereImpr.impressedAt.gte = startDate;
+        whereClick.clickedAt.gte = startDate;
+      }
+      if (endDate) {
+        whereImpr.impressedAt.lte = endDate;
+        whereClick.clickedAt.lte = endDate;
+      }
+    }
+
+    const [impressions, clicks] = await Promise.all([
+      prisma.marketplaceImpression.count({ where: whereImpr }),
+      prisma.marketplaceClick.count({ where: whereClick })
+    ]);
+
+    return {
+      listingId: l.id,
+      title: l.title,
+      url: l.url,
+      impressions,
+      clicks,
+      ctr: impressions > 0 ? clicks / impressions : 0
+    };
+  }));
+
+  const totals = results.reduce((acc, r) => {
+    acc.impressions += r.impressions;
+    acc.clicks += r.clicks;
+    return acc;
+  }, { impressions: 0, clicks: 0 });
+
+  const topListings = results.sort((a, b) => b.impressions - a.impressions).slice(0, limit);
+
+  return {
+    vendorId,
+    totals,
+    topListings,
+    period: { startDate: startDate || null, endDate: endDate || null }
+  };
 };

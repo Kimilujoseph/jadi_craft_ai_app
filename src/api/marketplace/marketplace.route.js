@@ -24,6 +24,20 @@ router.patch('/listings/:id', authMiddleware, updateListingValidator, marketplac
 // @desc    Delete a listing for the authenticated user
 // @access  Private
 router.delete('/listings/:id', authMiddleware, marketplaceController.deleteListing);
- 
+
+// @route   POST /api/v1/marketplace/listings/click
+// @desc    Handle a click on a listing
+// @access  Private
 router.post('/click', authMiddleware, marketplaceController.handleMarketplaceClick);
+
+// @route   GET /api/v1/marketplace/listings/:id/analytics
+// @desc    Get analytics for a specific listing
+// @access  Private (OWNER only)
+router.get('/analytics/listings/:id', authMiddleware, marketplaceController.getListingAnalyticsController);
+
+// @route   GET /api/v1/marketplace/analytics/vendor
+// @desc    Get vendor analytics summary
+// @access  Private
+router.get('/analytics/vendor', authMiddleware, marketplaceController.getVendorAnalyticsController);
+
 export default router;

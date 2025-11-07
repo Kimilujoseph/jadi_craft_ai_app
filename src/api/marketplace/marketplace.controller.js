@@ -1,6 +1,6 @@
 import prisma from '../../database/client.js';
 import AuthorizationError from '../../utils/errors/AuthorizationError.js';
-import { logClick } from './promotedlistings.js';
+import { logClick, getListingAnalytics, getVendorAnalytics } from './promotedlistings.js';
 
 export const createListing = async (req, res, next) => {
   try {
@@ -125,7 +125,7 @@ export const deleteListing = async (req, res, next) => {
   }
 }
 
-  export const handleMarketplaceClick = async (req, res, next) => {
+export const handleMarketplaceClick = async (req, res, next) => {
   const { listingId } = req.body;
   const userId = req.user?.user_id; // Comes from authMiddleware
 
@@ -140,4 +140,51 @@ export const deleteListing = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-}
+};
+
+// NEW: Get analytics for a single listing (owner-only)
+export const getListingAnalyticsController = async (req, res, next) => {
+  try {
+    const listingId = req.params.id;
+    const userId = req.user.user_id;
+
+    const listing = await prisma.marketplaceListing.findUnique({ where: { id: listingId } });
+    if (!listing) {
+      return res.status(404).json({ success: false, message: 'Listing not found.' });
+    }
+
+    if (listing.userId !== userId && req.user.role !== 'ADMIN') {
+      throw new AuthorizationError('Forbidden: You can only view analytics for your own listings.');
+    }
+
+    const start = req.query.start ? new Date(req.query.start) : null;
+    const end = req.query.end ? new Date(req.query.end) : null;
+    if (start && isNaN(start.getTime())) return res.status(400).json({ success: false, message: 'Invalid start date.' });
+    if (end && isNaN(end.getTime())) return res.status(400).json({ success: false, message: 'Invalid end date.' });
+
+    const data = await getListingAnalytics(listingId, { startDate: start, endDate: end });
+    return res.status(200).json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// NEW: Get vendor-level analytics (authenticated vendor)
+export const getVendorAnalyticsController = async (req, res, next) => {
+  try {
+    const vendorId = req.user.user_id;
+    if (!vendorId) return res.status(401).json({ success: false, message: 'Unauthorized' });
+
+    const start = req.query.start ? new Date(req.query.start) : null;
+    const end = req.query.end ? new Date(req.query.end) : null;
+    const limit = req.query.limit ? Number(req.query.limit) : 10;
+
+    if (start && isNaN(start.getTime())) return res.status(400).json({ success: false, message: 'Invalid start date.' });
+    if (end && isNaN(end.getTime())) return res.status(400).json({ success: false, message: 'Invalid end date.' });
+
+    const data = await getVendorAnalytics(vendorId, { startDate: start, endDate: end, limit });
+    return res.status(200).json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};

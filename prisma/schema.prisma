@@ -8,59 +8,50 @@ datasource db {
 }
 
 model User {
-  user_id    BigInt      @id @default(autoincrement())
-  name       String?
-  email      String      @unique
-  password   String
-  locale     String      @default("en") @db.VarChar(45)
-  created_at DateTime    @default(now()) @db.DateTime(0)
-  updated_at DateTime?   @default(now()) @db.DateTime(0)
-  
-  plan       Plan        @default(FREE)
-  role       UserRole    @default(USER)
-
-  // Relations
-  chats      Chat[]
-  usage      UsageTracker[]
-  listings   MarketplaceListing[]
-  events     Event[]
-
-  //Relations for SEO Analytics
-  impressions MarketplaceImpression[]
+  user_id     BigInt                  @id @default(autoincrement())
+  name        String?
+  email       String                  @unique
+  password    String
+  locale      String                  @default("en") @db.VarChar(45)
+  created_at  DateTime                @default(now()) @db.DateTime(0)
+  updated_at  DateTime?               @default(now()) @db.DateTime(0)
+  plan        Plan                    @default(FREE)
+  role        UserRole                @default(USER)
+  chats       Chat[]
+  events      Event[]
   clicks      MarketplaceClick[]
-
+  impressions MarketplaceImpression[]
+  listings    MarketplaceListing[]
+  usage       UsageTracker[]
 }
 
 model Chat {
-  id         BigInt    @id @default(autoincrement())
-  title      String?
-  userId     BigInt
-  user       User     @relation(fields: [userId], references: [user_id], onDelete: Cascade)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  summary    String?   @db.Text
-  messages   Message[]
+  id        BigInt    @id @default(autoincrement())
+  title     String?
+  userId    BigInt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  summary   String?   @db.Text
+  user      User      @relation(fields: [userId], references: [user_id], onDelete: Cascade)
+  messages  Message[]
 
   @@index([userId])
 }
 
 model Message {
-  id        BigInt   @id @default(autoincrement())
-  chatId    BigInt
-  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  role      Role
-  content   String   @db.Text
-  precis    String?  @db.Text
-
-  idempotencyKey String?  @unique
-  refinedPrompt  String?  @db.Text
-  audioUrl     String?
-  fallbackUsed Boolean? @default(false)
-  status    MessageStatus @default(COMPLETED)
-  
-  failures  FailureLog[]
-
-  createdAt DateTime @default(now())
+  id             BigInt        @id @default(autoincrement())
+  chatId         BigInt
+  role           Role
+  content        String        @db.Text
+  audioUrl       String?
+  createdAt      DateTime      @default(now())
+  fallbackUsed   Boolean?      @default(false)
+  idempotencyKey String?       @unique
+  refinedPrompt  String?       @db.Text
+  status         MessageStatus @default(COMPLETED)
+  precis         String?       @db.Text
+  failures       FailureLog[]
+  chat           Chat          @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
   @@index([chatId])
 }
@@ -68,34 +59,30 @@ model Message {
 model Event {
   id               BigInt   @id @default(autoincrement())
   title            String?
-  image            String? // stored file path or URL
+  image            String?
   shortDescription String   @db.Text
   time             DateTime
   venue            String
-  link             String? // optional external registration link
-  userId           BigInt? // optional creator (event planner)
-  user             User?   @relation(fields: [userId], references: [user_id], onDelete: SetNull)
-
-  // PUBLISHED FLAG (added) — events created as unpublished by default
-  published Boolean @default(false)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  link             String?
+  userId           BigInt?
+  published        Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User?    @relation(fields: [userId], references: [user_id])
 
   @@index([userId])
   @@index([time])
   @@index([published])
 }
 
-
 model FailureLog {
-  id          BigInt      @id @default(autoincrement())
-  messageId   BigInt
-  message     Message     @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  failureType FailureType
-  errorCode   String?
-  errorMessage String     @db.Text
-  createdAt   DateTime    @default(now())
+  id           BigInt      @id @default(autoincrement())
+  messageId    BigInt
+  failureType  FailureType
+  errorCode    String?
+  errorMessage String      @db.Text
+  createdAt    DateTime    @default(now())
+  message      Message     @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@index([messageId])
 }
@@ -103,73 +90,57 @@ model FailureLog {
 model UsageTracker {
   id             BigInt    @id @default(autoincrement())
   userId         BigInt
-  user           User     @relation(fields: [userId], references: [user_id], onDelete: Cascade)
   usageType      UsageType
   count          Int       @default(0)
   cycleStartDate DateTime  @default(now())
+  user           User      @relation(fields: [userId], references: [user_id], onDelete: Cascade)
 
   @@unique([userId, usageType])
 }
 
 model MarketplaceListing {
-  id          String   @id @default(cuid())
+  id          String                  @id @default(cuid())
   url         String
   title       String
   description String
-  categories  Json     @default("[]")
-  keywords    Json     @default("[]")
-  status      ListingStatus @default(PENDING)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  categories  Json
+  keywords    Json
+  status      ListingStatus           @default(PENDING)
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
   expiresAt   DateTime?
-
-  userId BigInt
-  user   User  @relation(fields: [userId], references: [user_id], onDelete: Cascade)
-
-  //Relations for SEO Analytics (Impressions and Clicks)
-  impressions MarketplaceImpression[] 
-  clicks      MarketplaceClick[] 
+  userId      BigInt
+  clicks      MarketplaceClick[]
+  impressions MarketplaceImpression[]
+  user        User                    @relation(fields: [userId], references: [user_id], onDelete: Cascade)
 
   @@index([userId])
 }
 
-// Tracks every time a user is SHOWN a promoted link (SEO IMPRESSION)
 model MarketplaceImpression {
-    id                 BigInt     @id @default(autoincrement())
-    // Relations to the Listing (String)
-    listingId          String
-    listing            MarketplaceListing @relation(fields: [listingId], references: [id])
-    
-    // Relations to the User (BigInt)
-    userId             BigInt?    // User who was shown the listing (nullable for guests)
-    user               User?      @relation(fields: [userId], references: [user_id]) 
-    
-    userQuery          String     // Logs the exact query (crucial for keyword analysis)
-    impressedAt        DateTime   @default(now())
+  id          BigInt             @id @default(autoincrement())
+  listingId   String
+  userId      BigInt?
+  userQuery   String
+  impressedAt DateTime           @default(now())
+  listing     MarketplaceListing @relation(fields: [listingId], references: [id])
+  user        User?              @relation(fields: [userId], references: [user_id])
 
-    @@index([listingId])
-    @@index([userId])
+  @@index([listingId])
+  @@index([userId])
 }
 
-// Tracks every time a user INTERACTS with a promoted link (SEO CLICK)
 model MarketplaceClick {
-    id                 BigInt     @id @default(autoincrement())
-    // Relations to the Listing (String)
-    listingId          String
-    listing            MarketplaceListing @relation(fields: [listingId], references: [id])
+  id        BigInt             @id @default(autoincrement())
+  listingId String
+  userId    BigInt?
+  clickedAt DateTime           @default(now())
+  listing   MarketplaceListing @relation(fields: [listingId], references: [id])
+  user      User?              @relation(fields: [userId], references: [user_id])
 
-    // Relations to the User (BigInt)
-    userId             BigInt?    // User who clicked the listing (nullable for guests)
-    user               User?      @relation(fields: [userId], references: [user_id])
-    
-    clickedAt          DateTime   @default(now())
-
-    @@index([listingId])
-    @@index([userId])
+  @@index([listingId])
+  @@index([userId])
 }
-
-
-// --- ENUMS for structured data ---
 
 enum Role {
   user

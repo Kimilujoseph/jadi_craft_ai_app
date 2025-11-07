@@ -87,7 +87,6 @@ class LLMProvider {
      * Primary: Google Gemini
      */
     async callPrimary(prompt) {
-        // MODIFIED PROMPT BELOW
         const structuredPrompt = `
       You are an **expert cultural storyteller and educational assistant**. Your goal is to provide knowledge that is perfect for an immersive and engaging audio segment.
 
@@ -107,7 +106,7 @@ class LLMProvider {
       ---
     `;
 
-        const response = await fetch(
+        const response = await this.fetchWithRetry(
             `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.geminiKey}`,
             {
                 method: "POST",
@@ -151,7 +150,7 @@ class LLMProvider {
      * Simplified Primary Call for Plain Text (for summaries)
      */
     async callPrimaryForText(prompt) {
-        const response = await fetch(
+        const response = await this.fetchWithRetry(
             `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.geminiKey}`,
             {
                 method: "POST",
@@ -179,15 +178,17 @@ class LLMProvider {
         return generatedText;
     }
 
-
     async callFallback(prompt) {
-        const response = await fetch(`https://api-inference.huggingface.co/models/${this.hfModel}`, {
+        const response = await fetch("https://router.huggingface.co/v1/chat/completions", {
             method: "POST",
             headers: {
                 Authorization: `Bearer ${this.hfKey}`,
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify({ inputs: prompt }),
+            body: JSON.stringify({
+                model: this.hfModel,
+                messages: [{"role": "user", "content": prompt}]
+            }),
         });
 
         if (!response.ok) {
@@ -196,13 +197,40 @@ class LLMProvider {
         }
 
         const data = await response.json();
-        const generatedText = data[0]?.generated_text;
+        const generatedText = data.choices?.[0]?.message?.content;
 
         if (!generatedText) {
             throw new LLMError("Hugging Face returned no text content.");
         }
 
         return generatedText;
+    }
+
+    async fetchWithRetry(url, options, maxRetries = 4, initialDelay = 2000) {
+        let attempt = 0;
+        while (attempt < maxRetries) {
+            try {
+                const response = await fetch(url, options);
+                if (response.status === 429 && attempt < maxRetries - 1) {
+                    const delay = initialDelay * Math.pow(2, attempt) + Math.random() * 1000;
+                    console.warn(`Gemini API rate limited. Retrying in ${Math.round(delay / 1000)}s...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    attempt++;
+                    continue;
+                }
+                return response;
+            } catch (error) {
+                if (attempt < maxRetries - 1) {
+                    const delay = initialDelay * Math.pow(2, attempt) + Math.random() * 1000;
+                    console.warn(`Fetch failed. Retrying in ${Math.round(delay / 1000)}s...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    attempt++;
+                    continue;
+                }
+                throw error;
+            }
+        }
+        throw new LLMError(`Gemini API failed after ${maxRetries} retries.`);
     }
 
 

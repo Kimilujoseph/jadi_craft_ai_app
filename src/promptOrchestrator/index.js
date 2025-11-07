@@ -139,7 +139,7 @@ class PromptOrchestrator {
     const keywords = extractKeywords(question);
     console.log("🛠️ Extracted Keywords:", keywords);
     // --- Marketplace Integration ---
-    const promotedListings = await this._findPromotedListings(category, keywords);
+    const promotedListings = await this._findPromotedListings(category);
     console.log("promotedListing", promotedListings)
     let sponsoredLinksText = '';
     if (promotedListings && promotedListings.length > 0) {
@@ -183,6 +183,26 @@ class PromptOrchestrator {
     const audioUrl = wantsAudio ? await this._synthesizeAudioGracefully(text, userMessage.id) : null;
 
     return { text, precis, fallbackUsed, audioUrl, promotedListings };
+  }
+
+  async _findPromotedListings(category) {
+    if (!category || category === 'art') {
+      return [];
+    }
+    try {
+
+      const searchString = JSON.stringify(category.toLowerCase());
+      console.log("searchString", searchString);
+      const listings = await prisma.$queryRaw(
+        Prisma.sql`SELECT * FROM MarketplaceListing WHERE status = 'ACTIVE' AND JSON_CONTAINS(categories, CAST(${searchString} AS JSON)) LIMIT 3`
+      );
+      listings.forEach(listing => delete listing.userId);
+
+      return listings;
+    } catch (error) {
+      console.error('Error fetching promoted listings:', error);
+      return [];
+    }
   }
 
 

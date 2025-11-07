@@ -24,7 +24,7 @@ export const createListing = async (req, res, next) => {
       },
     });
 
-
+    console.log("Iwas here", newListing);
     res.status(201).json({ "message": "successfully created a listing" });
   } catch (error) {
     next(error);

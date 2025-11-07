@@ -137,9 +137,9 @@ class PromptOrchestrator {
 
     //Marketplace Integration with new SEO engine
     const keywords = extractKeywords(question);
-
+    console.log("🛠️ Extracted Keywords:", keywords);
     // --- Marketplace Integration ---
-    const promotedListings = await this._findPromotedListings("art");
+    const promotedListings = await this._findPromotedListings(category, keywords);
     console.log("promotedListing", promotedListings)
     let sponsoredLinksText = '';
     if (promotedListings && promotedListings.length > 0) {
@@ -150,11 +150,11 @@ class PromptOrchestrator {
       `;
 
       //Log Impression Analytics non-blockingly (fire-and-forget)
-     // We log it here because the link has been 'shown' by including it in the prompt.
+      // We log it here because the link has been 'shown' by including it in the prompt.
       promotedListings.forEach(link => {
-      logImpression(link.id, chat.userId, question)
-     .catch(err => console.error(`Error logging impression for ${link.id}:`, err.message));
-});
+        logImpression(link.id, chat.userId, question)
+          .catch(err => console.error(`Error logging impression for ${link.id}:`, err.message));
+      });
     }
     // ---------------------------
     console.log(`🛠️ Category identified@: ${sponsoredLinksText}`);
@@ -185,7 +185,7 @@ class PromptOrchestrator {
     return { text, precis, fallbackUsed, audioUrl, promotedListings };
   }
 
-  
+
   async _finalWrite(tx, { userMessage, text, precis, fallbackUsed, audioUrl, chatId, userId, promotedListings }) {
     const assistantMessage = await tx.message.create({
       data: {

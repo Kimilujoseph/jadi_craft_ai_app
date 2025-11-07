@@ -18,7 +18,7 @@ router.get('/listings', authMiddleware, marketplaceController.getMyListings);
 // @route   PATCH /api/v1/marketplace/listings/:id
 // @desc    Update a listing for the authenticated user
 // @access  Private
-router.patch('/listings/:id', authMiddleware, updateListingValidator, marketplaceController.updateListing);
+router.put('/listings/:id', authMiddleware, updateListingValidator, marketplaceController.updateListing);
 
 // @route   DELETE /api/v1/marketplace/listings/:id
 // @desc    Delete a listing for the authenticated user

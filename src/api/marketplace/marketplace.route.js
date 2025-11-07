@@ -30,6 +30,11 @@ router.delete('/listings/:id', authMiddleware, marketplaceController.deleteListi
 // @access  Private
 router.post('/click', authMiddleware, marketplaceController.handleMarketplaceClick);
 
+// @route   POST /api/v1/marketplace/listings/click
+// @desc    Handle a click on a listing (alternate path)
+// @access  Private
+router.post('/listings/click', authMiddleware, marketplaceController.handleMarketplaceClick);
+
 // @route   GET /api/v1/marketplace/listings/:id/analytics
 // @desc    Get analytics for a specific listing
 // @access  Private (OWNER only)

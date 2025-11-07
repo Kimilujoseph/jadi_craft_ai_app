@@ -142,7 +142,28 @@ export const handleMarketplaceClick = async (req, res, next) => {
   }
 };
 
-// NEW: Get analytics for a single listing (owner-only)
+// Helper to recursively convert BigInt values to strings in objects/arrays
+function convertBigInts(obj) {
+  if (Array.isArray(obj)) {
+    return obj.map(convertBigInts);
+  } else if (obj && typeof obj === 'object') {
+    const result = {};
+    for (const key in obj) {
+      const value = obj[key];
+      if (typeof value === 'bigint') {
+        result[key] = value.toString();
+      } else if (Array.isArray(value) || (value && typeof value === 'object')) {
+        result[key] = convertBigInts(value);
+      } else {
+        result[key] = value;
+      }
+    }
+    return result;
+  }
+  return obj;
+}
+
+// NEW: Get analytics for a single listing 
 export const getListingAnalyticsController = async (req, res, next) => {
   try {
     const listingId = req.params.id;
@@ -163,7 +184,7 @@ export const getListingAnalyticsController = async (req, res, next) => {
     if (end && isNaN(end.getTime())) return res.status(400).json({ success: false, message: 'Invalid end date.' });
 
     const data = await getListingAnalytics(listingId, { startDate: start, endDate: end });
-    return res.status(200).json({ success: true, data });
+    return res.status(200).json({ success: true, data: convertBigInts(data) });
   } catch (error) {
     next(error);
   }
@@ -183,7 +204,7 @@ export const getVendorAnalyticsController = async (req, res, next) => {
     if (end && isNaN(end.getTime())) return res.status(400).json({ success: false, message: 'Invalid end date.' });
 
     const data = await getVendorAnalytics(vendorId, { startDate: start, endDate: end, limit });
-    return res.status(200).json({ success: true, data });
+    return res.status(200).json({ success: true, data: convertBigInts(data) });
   } catch (error) {
     next(error);
   }

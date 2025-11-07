@@ -187,7 +187,7 @@ class LLMProvider {
             },
             body: JSON.stringify({
                 model: this.hfModel,
-                messages: [{"role": "user", "content": prompt}]
+                messages: [{ "role": "user", "content": prompt }]
             }),
         });
 
@@ -213,7 +213,7 @@ class LLMProvider {
                 const response = await fetch(url, options);
                 if (response.status === 429 && attempt < maxRetries - 1) {
                     const delay = initialDelay * Math.pow(2, attempt) + Math.random() * 1000;
-                    console.warn(`Gemini API rate limited. Retrying in ${Math.round(delay / 1000)}s...`);
+                    //console.warn(`Gemini API rate limited. Retrying in ${Math.round(delay / 1000)}s...`);
                     await new Promise(resolve => setTimeout(resolve, delay));
                     attempt++;
                     continue;

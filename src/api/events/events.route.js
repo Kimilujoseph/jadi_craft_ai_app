@@ -54,26 +54,24 @@ router.get('/', (req, res, next) => EventsController.getEvents(req, res, next));
 // Public: get event by id
 router.get('/:id', (req, res, next) => EventsController.getEventById(req, res, next));
 
-// Protected: create event (Multipart: file -> Multer Memory -> Cloudinary Upload -> Controller)
+// Create event with image upload
 router.post(
     '/',
-    authenticate,
     upload.single('image'), // Multer runs first
     uploadToCloudinary,     // Cloudinary upload runs second
     (req, res, next) => EventsController.createEvent(req, res, next) // Controller runs last
 );
 
-// Protected: update event
+// Update event with image upload
 router.put(
     '/:id',
-    authenticate,
     upload.single('image'), // Multer runs first
     uploadToCloudinary,     // Cloudinary upload runs second
     (req, res, next) => EventsController.updateEvent(req, res, next) // Controller runs last
 );
 
-// Protected: delete event
-router.delete('/:id', authenticate, (req, res, next) =>
+// Delete event
+router.delete('/:id', (req, res, next) =>
     EventsController.deleteEvent(req, res, next)
 );
 

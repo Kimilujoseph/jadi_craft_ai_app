@@ -12,31 +12,19 @@ class EventsController {
     // Get all events, ordered by time desc
     async getEvents(req, res, next) {
         try {
-            const userId = req.user?.user_id;
-            const where = req.user
-                ? {
-                      OR: [
-                          { published: true },
-                          { userId: userId ? BigInt(userId) : undefined },
-                      ],
-                  }
-                : { published: true };
-
+            // Fetch all events without any filtering
             const events = await prisma.event.findMany({
-                where,
                 orderBy: { time: 'desc' },
             });
 
             const serialized = events.map(e => ({
                 id: e.id.toString(),
                 title: e.title || null,
-                // Image field now contains the Cloudinary URL
                 image: e.image || null,
                 shortDescription: e.shortDescription,
                 time: e.time,
                 venue: e.venue,
                 link: e.link || null,
-                published: !!e.published,
                 userId: e.userId ? e.userId.toString() : null,
                 createdAt: e.createdAt,
                 updatedAt: e.updatedAt,
@@ -147,6 +135,40 @@ class EventsController {
         }
     }
 
+    // Get event by id
+    async getEventById(req, res, next) {
+        try {
+            const id = BigInt(req.params.id);
+
+            const event = await prisma.event.findUnique({
+                where: { id },
+            });
+
+            if (!event) {
+                throw new NotFoundError('Event not found');
+            }
+
+            const serialized = {
+                id: event.id.toString(),
+                title: event.title || null,
+                image: event.image || null,
+                shortDescription: event.shortDescription,
+                time: event.time,
+                venue: event.venue,
+                link: event.link || null,
+                published: !!event.published,
+                userId: event.userId ? event.userId.toString() : null,
+                createdAt: event.createdAt,
+                updatedAt: event.updatedAt,
+            };
+
+            return res.status(200).json(serialized);
+        } catch (error) {
+            if (error instanceof NotFoundError) return next(error);
+            next(error);
+        }
+    }
+
     // Update event by id
     async updateEvent(req, res, next) {
         try {
@@ -214,14 +236,7 @@ class EventsController {
             const existing = await prisma.event.findUnique({ where: { id } });
             if (!existing) throw new NotFoundError('Event not found.');
 
-            const requesterId = req.user?.user_id;
-            const isOwner = requesterId && existing.userId && String(existing.userId) === String(requesterId);
-            const isAdmin = !!req.user?.is_admin;
-
-            if (!(isOwner || isAdmin)) {
-                return res.status(403).json({ message: 'Forbidden' });
-            }
-
+            // Just delete the event without any permission checks
             await prisma.event.delete({ where: { id } });
 
             return res.status(200).json({ message: 'Event deleted' });

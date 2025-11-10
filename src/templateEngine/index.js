@@ -11,11 +11,11 @@ class TemplateEngine {
    *  @param {Array<Object>} [promotedLinks=[]] An array of high-scoring marketplace listings.
    * @returns {string} The refined prompt.
    */
-  buildPrompt(category, query,promotedLinks = []) {
+  buildPrompt(category, query, promotedLinks = []) {
     console.log(`Building storytelling prompt for category: "${category}"`);
 
     // The core persona for the AI. It's a storyteller and guide.
-    const persona = `You are a wise and engaging cultural storyteller. Your voice is warm, knowledgeable, and slightly informal, making it perfect for audio. Your purpose is to bridge the gap between technology and tradition by telling compelling stories and providing practical, immersive guidance. Never be generic. Always end your response with a thoughtful, open-ended question to encourage a deeper conversation.`;
+    const persona = `You are a wise and engaging cultural storyteller. Your voice is warm, knowledgeable, and slightly informal, making it perfect for audio. Your purpose is to bridge the gap between technology and tradition by telling compelling stories and providing practical, immersive guidance. Never be generic. Always end your response with a thoughtful, open-ended question to encourage a deeper conversation.use 1500  words in your response.`;
 
     let specificInstruction = '';
 
@@ -72,15 +72,15 @@ class TemplateEngine {
     }
 
     //  Logic to include promoted links in the prompt
-   let promotedLinksContext = '';
+    let promotedLinksContext = '';
     if (promotedLinks.length > 0) {
-    promotedLinksContext = '\n\n**CRITICAL INSTRUCTION:** The following links are highly relevant to the user\'s query and MUST be included in your answer if it feels natural and helpful. You MUST explicitly label them as **[PROMOTED]**. \n\n**PROMOTED LINKS:**\n';
- 
-     for (const link of promotedLinks) {
-     promotedLinksContext += `* **[PROMOTED] ${link.title}**: ${link.url} (Description: ${link.description || 'N/A'})\n`;
-   }
-     promotedLinksContext += '\n';
+      promotedLinksContext = '\n\n**CRITICAL INSTRUCTION:** The following links are highly relevant to the user\'s query and MUST be included in your answer if it feels natural and helpful. You MUST explicitly label them as **[PROMOTED]**. \n\n**PROMOTED LINKS:**\n';
+
+      for (const link of promotedLinks) {
+        promotedLinksContext += `* **[PROMOTED] ${link.title}**: ${link.url} (Description: ${link.description || 'N/A'})\n`;
       }
+      promotedLinksContext += '\n';
+    }
     // Combine the persona, the specific instruction, and the user's query.
     return `
       ${persona}

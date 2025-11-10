@@ -9,4 +9,4 @@ export const VOICE_ID = "21m00Tcm4TlvDq8ikWAM";
 
 export const TTS_TIMEOUT = 60000;
 
-export const MAX_CHUNK_LENGTH = 2000;
+export const MAX_CHUNK_LENGTH = 12000;

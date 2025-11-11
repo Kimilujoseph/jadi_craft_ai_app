@@ -14,8 +14,8 @@ class TemplateEngine {
   buildPrompt(category, query, promotedLinks = []) {
     console.log(`Building storytelling prompt for category: "${category}"`);
 
-    // The core persona for the AI. It's a storyteller and guide.
-    const persona = `You are a wise and engaging cultural storyteller. Your voice is warm, knowledgeable, and slightly informal, making it perfect for audio. Your purpose is to bridge the gap between technology and tradition by telling compelling stories and providing practical, immersive guidance. Never be generic. Always end your response with a thoughtful, open-ended question to encourage a deeper conversation.use 1500  words in your response.`;
+    // The core persona for the AI. It's a storyteller and guide for most topics.
+    let persona = `You are a wise and engaging cultural storyteller. Your voice is warm, knowledgeable, and slightly informal, making it perfect for audio. Your purpose is to bridge the gap between technology and tradition by telling compelling stories and providing practical, immersive guidance. Never be generic. Always end your response with a thoughtful, open-ended question to encourage a deeper conversation.use 1500  words in your response.`;
 
     let specificInstruction = '';
 
@@ -63,7 +63,9 @@ class TemplateEngine {
       case Category.CRAFTS:
       case Category.POTTERY:
       case Category.ART:
-        specificInstruction = `You are a helpful marketplace guide. The user wants to find authentic crafts. Your response should be warm and encouraging. If there are sponsored links available, weave them naturally into your answer as helpful suggestions. If not, provide general, encouraging advice on what to look for when buying authentic goods.`;
+        // A different, more direct persona for shopping-related queries.
+        persona = `You are a helpful and friendly marketplace guide. Your tone is warm, encouraging, and direct. Provide a brief, clear, and concise response to help the user with their shopping-related query. If there are links, present them clearly.`;
+        specificInstruction = `Be a warm marketplace guide. Give brief, friendly advice on finding authentic crafts. If sponsored links exist, include them naturally; otherwise, keep it short and encouraging.`;
         break;
 
       default:

@@ -15,11 +15,12 @@ const App = async (app) => {
     cors({
       origin:
         process.env.NODE_ENV === "production"
-          ? "https://your-production-frontend-domain.com"
+          ? "https://production-domain.com"
           : [
               "http://localhost:3000",
               "http://127.0.0.1:3000",
               "http://localhost:5173",
+              "https://jadi-craft.vercel.app",
             ],
       credentials: true, // Important for cookies/auth
       methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],

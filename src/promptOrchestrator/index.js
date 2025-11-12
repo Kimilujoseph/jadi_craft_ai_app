@@ -194,7 +194,7 @@ class PromptOrchestrator {
       const searchString = JSON.stringify(category.toLowerCase());
       console.log("searchString", searchString);
       const listings = await prisma.$queryRaw(
-        Prisma.sql`SELECT * FROM MarketplaceListing WHERE status = 'ACTIVE' AND JSON_CONTAINS(categories, CAST(${searchString} AS JSON)) LIMIT 3`
+        Prisma.sql`SELECT * FROM MarketplaceListing WHERE status = 'ACTIVE' AND JSON_CONTAINS(categories, CAST(${searchString} AS JSON)) LIMIT 4`
       );
       listings.forEach(listing => delete listing.userId);
 

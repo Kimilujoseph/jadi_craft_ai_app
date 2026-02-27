@@ -7,6 +7,7 @@ import authRouter from './api/auth/auth.route.js';
 import chatRouter from './api/chat/chat.route.js';
 import marketplaceRouter from './api/marketplace/marketplace.route.js';
 import eventsRouter from './api/events/events.route.js';
+import paymentRouter from './api/payment/payment.route.js';
 import errorHandler from './middleware/errorHandler.js';
 
 const App = async (app) => {
@@ -41,6 +42,7 @@ const App = async (app) => {
   app.use("/api/v1/chats", chatRouter);
   app.use("/api/v1/marketplace", marketplaceRouter);
   app.use("/api/v1/events", eventsRouter);
+  app.use("/api/v1/payment", paymentRouter);
 
   // Error Handling Middleware
   app.use(errorHandler);
